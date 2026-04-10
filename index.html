@@ -1,0 +1,2810 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoCoste — El coste real de tu próximo coche</title>
+<meta name="description" content="Calcula el coste total de propiedad (TCO) de cualquier coche nuevo en España. Metodología académica, datos reales, sin sesgos comerciales.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+/* ════════════════════════════════════
+   DESIGN TOKENS — Editorial / FT Style
+════════════════════════════════════ */
+:root {
+  /* Brand */
+  --ink:   #141414;
+  --paper: #FAFAF8;
+  --n0:    #FFFFFF;
+  --n50:   #F7F7F5;
+  --n100:  #EFEFED;
+  --n200:  #E0DFD9;
+  --n300:  #C8C7BF;
+  --n400:  #9E9D94;
+  --n500:  #72716A;
+  --n700:  #3D3D38;
+  --n900:  #141414;
+
+  /* Accent — deep navy press blue */
+  --b:   #0F3460;
+  --b2:  #16213E;
+  --bl:  #E8EEF6;
+  --bm:  #B8CBE4;
+
+  /* Data colours */
+  --g:   #05603A;   /* savings */
+  --gl:  #D1FAE5;
+  --am:  #92400E;   /* warning */
+  --aml: #FEF3C7;
+  --red: #991B1B;
+  --rl:  #FEE2E2;
+
+  /* Accent red (editorial) */
+  --ac:  #C8102E;
+
+  /* Type */
+  --serif: 'Playfair Display', Georgia, serif;
+  --sans:  'DM Sans', system-ui, sans-serif;
+  --mono:  'JetBrains Mono', monospace;
+
+  /* Radii */
+  --r4: 4px; --r8: 8px; --r12: 12px;
+  --r16: 16px; --r20: 20px; --r24: 24px;
+
+  /* Shadows */
+  --s1: 0 1px 3px rgba(20,20,20,.08);
+  --s2: 0 2px 8px rgba(20,20,20,.10);
+  --s3: 0 8px 24px rgba(20,20,20,.12);
+  --s4: 0 16px 48px rgba(20,20,20,.16);
+  --s5: 0 32px 80px rgba(20,20,20,.20);
+}
+
+/* ════════════════════════════════════ RESET */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+html { font-size: 15px; -webkit-font-smoothing: antialiased; scroll-behavior: smooth }
+body { font-family: var(--sans); background: var(--paper); color: var(--ink); line-height: 1.55; overflow-x: hidden }
+button, input, select, textarea { font-family: inherit; outline: none }
+a { text-decoration: none; color: inherit }
+img { max-width: 100%; display: block }
+::-webkit-scrollbar { width: 5px; height: 5px }
+::-webkit-scrollbar-thumb { background: var(--n200); border-radius: 3px }
+
+/* ════════════════════════════════════ UTILITIES */
+.wrap    { max-width: 1280px; margin: 0 auto; padding: 0 24px }
+.wrap-sm { max-width: 880px;  margin: 0 auto; padding: 0 24px }
+.serif   { font-family: var(--serif) }
+.mono    { font-family: var(--mono) }
+
+@keyframes fadeUp   { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:none } }
+@keyframes fadeIn   { from { opacity:0 } to { opacity:1 } }
+@keyframes slideUp  { from { opacity:0; transform:translateY(100%) } to { opacity:1; transform:none } }
+@keyframes shimmer  { 0%,100% { opacity:.6 } 50% { opacity:1 } }
+@keyframes pulse    { 0%,100% { opacity:1 } 50% { opacity:.4 } }
+@keyframes tick     { from { transform:translateX(0) } to { transform:translateX(-50%) } }
+
+/* ════════════════════════════════════
+   HEADER / NAV — Landing
+════════════════════════════════════ */
+.land-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 300;
+  height: 60px; display: flex; align-items: center;
+  transition: all .3s;
+}
+.land-nav.scrolled {
+  background: rgba(250,250,248,.94);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--n200);
+  box-shadow: var(--s1);
+}
+.land-nav .wrap {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 24px;
+}
+.logo {
+  font-family: var(--serif);
+  font-size: 22px; font-weight: 900;
+  letter-spacing: -.03em; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+}
+.logo-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ac); flex-shrink: 0;
+}
+.logo-white { color: #fff }
+.logo-dark  { color: var(--ink) }
+.nav-links { display: flex; gap: 4px }
+.nav-link {
+  padding: 7px 16px; border-radius: var(--r8);
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; background: none; border: none;
+  transition: all .15s; color: rgba(255,255,255,.75);
+}
+.nav-link:hover { color: #fff; background: rgba(255,255,255,.1) }
+.scrolled .nav-link { color: var(--n500) }
+.scrolled .nav-link:hover { color: var(--ink); background: var(--n100) }
+.nav-actions { display: flex; gap: 8px; align-items: center }
+.btn-ghost {
+  border: 1.5px solid rgba(255,255,255,.3);
+  color: #fff; padding: 7px 18px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  background: transparent; transition: all .2s;
+}
+.btn-ghost:hover { border-color: rgba(255,255,255,.7) }
+.scrolled .btn-ghost { border-color: var(--n300); color: var(--n700) }
+.btn-primary {
+  background: var(--ac); color: #fff;
+  padding: 8px 20px; border-radius: 999px;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; border: none; transition: all .2s;
+}
+.btn-primary:hover { background: #A00D24; box-shadow: 0 4px 14px rgba(200,16,46,.35); transform: translateY(-1px) }
+
+/* ════════════════════════════════════
+   HERO — editorial magazine
+════════════════════════════════════ */
+.hero {
+  background: var(--b2);
+  min-height: 100vh;
+  display: grid; grid-template-rows: 1fr auto;
+  position: relative; overflow: hidden;
+}
+.hero-grain {
+  position: absolute; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity: .04; pointer-events: none;
+}
+.hero-lines {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+  background-size: 60px 60px; pointer-events: none;
+}
+.hero-glow {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 55% at 50% -5%, rgba(15,52,96,.8), transparent 60%);
+  pointer-events: none;
+}
+.hero-inner {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 140px 24px 80px;
+}
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: rgba(200,16,46,.15);
+  border: 1px solid rgba(200,16,46,.3);
+  color: #F87171;
+  padding: 5px 16px; border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase;
+  margin-bottom: 28px;
+  animation: fadeUp .7s ease both;
+}
+.hero-eyebrow-dot {
+  width: 6px; height: 6px; background: var(--ac);
+  border-radius: 50%; animation: pulse 2s ease-in-out infinite;
+}
+.hero-h {
+  font-family: var(--serif);
+  font-size: clamp(44px, 8vw, 96px);
+  font-weight: 900; color: #fff;
+  letter-spacing: -.04em; line-height: .95;
+  margin-bottom: 24px;
+  animation: fadeUp .7s .08s ease both;
+}
+.hero-h em {
+  font-style: italic; color: rgba(255,255,255,.35);
+}
+.hero-h .accent { color: #F87171 }
+.hero-rule {
+  width: 48px; height: 2px; background: var(--ac);
+  margin: 0 auto 24px; border-radius: 1px;
+  animation: fadeUp .7s .14s ease both;
+}
+.hero-sub {
+  font-size: clamp(15px, 2vw, 19px);
+  color: rgba(255,255,255,.45);
+  max-width: 520px; line-height: 1.7;
+  font-weight: 300; margin-bottom: 48px;
+  animation: fadeUp .7s .2s ease both;
+}
+.hero-manifesto {
+  display: flex; gap: 28px; flex-wrap: wrap; justify-content: center;
+  margin-bottom: 52px;
+  animation: fadeUp .7s .28s ease both;
+}
+.hm-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: rgba(255,255,255,.5);
+  font-weight: 500;
+}
+.hm-dot { width: 4px; height: 4px; background: var(--ac); border-radius: 50% }
+.hero-search-wrap {
+  width: 100%; max-width: 640px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: var(--r20);
+  padding: 6px 6px 6px 20px;
+  display: flex; align-items: center; gap: 8px;
+  backdrop-filter: blur(12px);
+  box-shadow: var(--s5);
+  animation: fadeUp .7s .34s ease both;
+}
+.hero-search-input {
+  flex: 1; background: transparent; border: none;
+  font-size: 15px; color: #fff;
+  font-family: var(--sans); font-weight: 400;
+}
+.hero-search-input::placeholder { color: rgba(255,255,255,.35) }
+.hero-search-btn {
+  background: var(--ac); color: #fff;
+  border: none; border-radius: var(--r12);
+  padding: 11px 24px; font-size: 14px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  transition: all .2s; font-family: var(--sans);
+  display: flex; align-items: center; gap: 8px;
+}
+.hero-search-btn:hover { background: #A00D24; transform: translateY(-1px) }
+.hero-tags {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  margin-top: 20px;
+  animation: fadeUp .7s .4s ease both;
+}
+.hero-tag {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+  color: rgba(255,255,255,.55); padding: 5px 14px;
+  border-radius: 999px; font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all .2s;
+}
+.hero-tag:hover { background: rgba(255,255,255,.12); color: #fff }
+/* Stats bar */
+.hero-stats {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.hs-item {
+  padding: 22px 0; text-align: center;
+  border-right: 1px solid rgba(255,255,255,.08);
+}
+.hs-item:last-child { border: none }
+.hs-n {
+  font-family: var(--serif);
+  font-size: clamp(26px, 3.5vw, 40px); font-weight: 900;
+  color: #fff; letter-spacing: -.04em; display: block;
+}
+.hs-l {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
+  color: rgba(255,255,255,.3); margin-top: 4px; display: block;
+}
+
+/* ════════════════════════════════════
+   TICKER
+════════════════════════════════════ */
+.ticker-bar {
+  background: var(--ink); height: 34px;
+  overflow: hidden; display: flex; align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.ticker-track {
+  display: flex; animation: tick 55s linear infinite; white-space: nowrap;
+}
+.ticker-track:hover { animation-play-state: paused }
+.ti { display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 28px; font-size: 11px;
+  color: rgba(255,255,255,.45);
+  border-right: 1px solid rgba(255,255,255,.07);
+  font-family: var(--mono);
+}
+.ti-k { color: rgba(255,255,255,.8); font-weight: 600 }
+.ti-g { color: #34D399 }
+.ti-r { color: #F87171 }
+
+/* ════════════════════════════════════
+   APP NAV
+════════════════════════════════════ */
+.app-nav {
+  background: var(--n0); border-bottom: 1px solid var(--n200);
+  position: sticky; top: 0; z-index: 200;
+  height: 56px;
+}
+.app-nav-inner {
+  display: flex; align-items: center;
+  height: 100%; max-width: 1280px; margin: 0 auto;
+  padding: 0 24px; gap: 12px;
+}
+.app-logo { cursor: pointer; font-size: 18px; font-weight: 900;
+  font-family: var(--serif); display: flex; align-items: center; gap: 6px;
+}
+.app-logo .logo-dot { width: 7px; height: 7px }
+.app-tabs { display: flex; gap: 2px; flex: 1 }
+.a-tab {
+  padding: 6px 14px; border-radius: var(--r8);
+  font-size: 13px; font-weight: 600;
+  color: var(--n500); cursor: pointer; background: none; border: none;
+  transition: all .14s; white-space: nowrap;
+  display: flex; align-items: center; gap: 6px;
+}
+.a-tab:hover { background: var(--n100); color: var(--ink) }
+.a-tab.on { background: var(--ink); color: #fff }
+.app-nav-r { display: flex; align-items: center; gap: 10px; flex-shrink: 0 }
+.mkt-pill {
+  background: var(--bl); border: 1px solid var(--bm);
+  color: var(--b); padding: 4px 12px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; font-family: var(--mono);
+  display: flex; align-items: center; gap: 5px;
+}
+.live-dot { width: 5px; height: 5px; background: #34D399;
+  border-radius: 50%; animation: pulse 2s ease-in-out infinite }
+.avatar-btn {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--b); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; cursor: pointer; border: none;
+  transition: transform .15s;
+}
+.avatar-btn:hover { transform: scale(1.08) }
+.av-wrap { position: relative }
+.av-drop {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: var(--n0); border: 1px solid var(--n200);
+  border-radius: var(--r16); width: 210px; box-shadow: var(--s5);
+  display: none; overflow: hidden; z-index: 400;
+}
+.av-drop.on { display: block; animation: fadeIn .18s ease }
+.avd-head { padding: 14px 16px; background: var(--n50); border-bottom: 1px solid var(--n200) }
+.avd-name { font-size: 14px; font-weight: 700 }
+.avd-email { font-size: 12px; color: var(--n400); margin-top: 2px }
+.avd-item { display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; font-size: 13px; color: var(--n700);
+  cursor: pointer; transition: background .12s;
+  border-bottom: 1px solid var(--n100) }
+.avd-item:last-child { border: none }
+.avd-item:hover { background: var(--n50) }
+.avd-item.danger { color: var(--red) }
+
+/* ════════════════════════════════════
+   SECTION SHELLS
+════════════════════════════════════ */
+.sec { display: none; padding-bottom: 80px }
+.sec.on { display: block; animation: fadeIn .2s ease }
+
+/* ════════════════════════════════════
+   EDITORIAL SECTION HEADERS
+════════════════════════════════════ */
+.sec-eyebrow {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .12em; color: var(--ac); margin-bottom: 8px;
+}
+.sec-h {
+  font-family: var(--serif);
+  font-size: clamp(26px, 4vw, 42px); font-weight: 900;
+  letter-spacing: -.04em; line-height: 1.05;
+}
+.sec-sub { font-size: 15px; color: var(--n500); font-weight: 300; line-height: 1.7 }
+
+/* ════════════════════════════════════
+   VEHICLE CARDS — editorial horizontal
+════════════════════════════════════ */
+.catalog-wrap { padding: 32px 0 }
+.cat-controls {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 16px; margin-bottom: 20px;
+}
+.cat-count { font-size: 13px; color: var(--n400); font-family: var(--mono) }
+
+/* Filter pills */
+.fpills { display: flex; gap: 6px; flex-wrap: wrap }
+.fp {
+  font-size: 12px; font-weight: 700;
+  padding: 6px 16px; border-radius: 999px;
+  border: 1.5px solid var(--n200);
+  cursor: pointer; background: var(--n0);
+  color: var(--n500); transition: all .14s; white-space: nowrap;
+}
+.fp:hover { border-color: var(--b); color: var(--b) }
+.fp.on { background: var(--ink); border-color: var(--ink); color: #fff }
+.fp.gas.on  { background: #92400E; border-color: #92400E }
+.fp.die.on  { background: #475569; border-color: #475569 }
+.fp.hev.on  { background: #065F46; border-color: #065F46 }
+.fp.phev.on { background: #0F766E; border-color: #0F766E }
+.fp.bev.on  { background: var(--b);  border-color: var(--b) }
+
+/* Vehicle grid */
+.vgrid { display: flex; flex-direction: column; gap: 12px }
+
+.vcard {
+  background: var(--n0);
+  border: 1px solid var(--n200);
+  border-radius: var(--r20);
+  overflow: hidden; cursor: pointer;
+  display: grid; grid-template-columns: 2fr 1fr;
+  min-height: 220px;
+  transition: all .22s cubic-bezier(.25,.46,.45,.94);
+  box-shadow: var(--s1);
+}
+.vcard:hover {
+  border-color: var(--b);
+  box-shadow: 0 0 0 3px rgba(15,52,96,.08), var(--s3);
+  transform: translateY(-2px);
+}
+.vcard.sel { border-color: var(--b); border-width: 2px; box-shadow: 0 0 0 4px rgba(15,52,96,.1) }
+.vcard.dim { opacity: .28; pointer-events: none }
+
+/* Image side */
+.vi { position: relative; overflow: hidden; background: var(--n100) }
+.vi-bg-gas  { background: linear-gradient(135deg, #FFFBEB, #FEF3C7 70%, #FDE68A) }
+.vi-bg-die  { background: linear-gradient(135deg, #F8FAFC, #E2E8F0) }
+.vi-bg-hev  { background: linear-gradient(135deg, #ECFDF5, #A7F3D0 70%, #6EE7B7) }
+.vi-bg-phev { background: linear-gradient(135deg, #F0FDFA, #99F6E4 70%, #5EEAD4) }
+.vi-bg-bev  { background: linear-gradient(135deg, #EFF6FF, #BFDBFE 70%, #93C5FD) }
+
+.vi-img {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; object-position: center 55%;
+  transition: transform .55s cubic-bezier(.25,.46,.45,.94), opacity .6s .1s;
+  will-change: transform;
+}
+.vcard:hover .vi-img { transform: scale(1.05) translateX(-8px) }
+.vi-fb {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 84px;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,.12));
+  transition: transform .4s;
+  z-index: 1;
+}
+.vi-img { z-index: 2 }
+.vcard:hover .vi-fb { transform: scale(1.04) translateX(-6px) }
+.vi-fade {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 120px;
+  background: linear-gradient(90deg, transparent, var(--n0));
+  pointer-events: none; z-index: 2;
+}
+/* Badges */
+.vi-badges {
+  position: absolute; top: 14px; left: 14px; z-index: 4;
+  display: flex; flex-direction: column; gap: 5px; align-items: flex-start;
+}
+.badge-type {
+  font-size: 9px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .07em; padding: 3px 9px; border-radius: 999px;
+  backdrop-filter: blur(10px);
+}
+.bt-gas  { background: rgba(254,243,199,.85); color: #92400E }
+.bt-die  { background: rgba(226,232,240,.85); color: #475569 }
+.bt-hev  { background: rgba(209,250,229,.85); color: #065F46 }
+.bt-phev { background: rgba(204,251,241,.85); color: #0F766E }
+.bt-bev  { background: rgba(219,234,254,.85); color: #1D4ED8 }
+.badge-award {
+  font-size: 9px; font-weight: 800;
+  background: rgba(200,16,46,.88); color: #fff;
+  padding: 3px 9px; border-radius: 999px;
+}
+.badge-moves {
+  font-size: 9px; font-weight: 800;
+  background: rgba(5,96,58,.88); color: #fff;
+  padding: 3px 9px; border-radius: 999px;
+}
+.vi-sel-check {
+  position: absolute; top: 14px; right: 16px; z-index: 5;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--b); color: #fff;
+  display: none; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900;
+  box-shadow: 0 2px 8px rgba(15,52,96,.4);
+}
+.vcard.sel .vi-sel-check { display: flex }
+.vi-ver-badge {
+  position: absolute; bottom: 12px; left: 14px; z-index: 4;
+  background: rgba(20,20,20,.55); color: #fff;
+  font-size: 10px; font-weight: 700;
+  padding: 4px 10px; border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+
+/* Info side */
+.vinfo {
+  padding: 20px 22px 18px;
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  position: relative; z-index: 3;
+  background: var(--n0);
+}
+.vi-brand {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .09em; color: var(--n400); margin-bottom: 3px;
+}
+.vi-model {
+  font-family: var(--serif);
+  font-size: 20px; font-weight: 900;
+  letter-spacing: -.04em; margin-bottom: 3px;
+}
+.vi-seg { font-size: 12px; color: var(--n400); margin-bottom: 12px }
+.vi-specs { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px }
+.vis { display: flex; flex-direction: column; gap: 1px }
+.vis-v { font-size: 13px; font-weight: 700; font-family: var(--mono) }
+.vis-l { font-size: 9px; text-transform: uppercase; letter-spacing: .07em; color: var(--n400) }
+.vi-rel { display: flex; align-items: center; gap: 8px; margin-bottom: 14px }
+.vrel-bar { height: 3px; width: 60px; background: var(--n200); border-radius: 2px; overflow: hidden }
+.vrel-fill { height: 100%; border-radius: 2px }
+.vrel-l { font-size: 10px; color: var(--n400); font-family: var(--mono) }
+.vi-bottom {}
+.vi-prices {
+  display: flex; justify-content: space-between;
+  align-items: flex-end; margin-bottom: 10px;
+}
+.vip-pvp .pvp-l { font-size: 10px; color: var(--n400); margin-bottom: 2px }
+.vip-pvp .pvp-v {
+  font-family: var(--serif); font-size: 20px; font-weight: 900;
+  letter-spacing: -.04em;
+}
+.vip-tco { text-align: right }
+.vip-tco .tco-l { font-size: 10px; color: var(--n400); margin-bottom: 2px }
+.vip-tco .tco-v { font-size: 13px; font-weight: 700; color: var(--b); font-family: var(--mono) }
+.vi-btns { display: flex; gap: 7px }
+.btn-ver {
+  flex: 1; background: var(--ink); color: #fff;
+  border-radius: var(--r12); padding: 10px 14px;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer; border: none; transition: all .18s;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.btn-ver:hover { background: var(--b); transform: translateY(-1px) }
+.vcard.sel .btn-ver { background: var(--b) }
+.btn-add-quick {
+  background: var(--n100); border: 1px solid var(--n200);
+  color: var(--n700); border-radius: var(--r12);
+  padding: 10px 12px; font-size: 12px; font-weight: 700;
+  cursor: pointer; transition: all .14s; flex-shrink: 0;
+}
+.btn-add-quick:hover { border-color: var(--b); color: var(--b); background: var(--bl) }
+
+/* Load more */
+.btn-load-more {
+  width: 100%; padding: 16px;
+  background: var(--n0); border: 2px dashed var(--n200);
+  border-radius: var(--r20); font-size: 14px; font-weight: 700;
+  color: var(--b); cursor: pointer; font-family: var(--sans);
+  transition: all .2s; margin-top: 8px;
+}
+.btn-load-more:hover { border-color: var(--b); background: var(--bl); transform: translateY(-2px) }
+
+/* Skeleton */
+.vcard-skel {
+  background: var(--n0); border: 1px solid var(--n200);
+  border-radius: var(--r20); overflow: hidden;
+  display: grid; grid-template-columns: 2fr 1fr; min-height: 220px;
+}
+.skel-img { background: var(--n100) }
+.skel-info { padding: 20px; display: flex; flex-direction: column; gap: 12px }
+.skel-line { background: var(--n200); border-radius: 4px; animation: shimmer 1.5s ease-in-out infinite }
+.sl-lg { height: 20px; width: 70% }
+.sl-md { height: 14px; width: 50% }
+.sl-sm { height: 12px; width: 35% }
+
+/* Mobile vcard */
+@media (max-width: 680px) {
+  .vcard { grid-template-columns: 1fr; grid-template-rows: 190px 1fr }
+  .vi-fade { top: auto; right: 0; bottom: 0; height: 60px; width: 100%;
+    background: linear-gradient(0deg, var(--n0), transparent) }
+}
+
+/* ════════════════════════════════════
+   COMPARE BAR (sticky bottom)
+════════════════════════════════════ */
+.cmp-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--n0); border-top: 2px solid var(--b);
+  padding: 12px 20px; display: none; align-items: center;
+  gap: 14px; z-index: 150; box-shadow: 0 -4px 20px rgba(0,0,0,.1);
+}
+.cmp-bar.on { display: flex }
+.cmpb-slots { display: flex; gap: 10px; flex: 1; overflow-x: auto }
+.cmpb-slot {
+  min-width: 130px; flex-shrink: 0;
+  border-radius: var(--r12); padding: 8px 12px;
+  border: 1.5px dashed var(--n200); background: var(--n50);
+  display: flex; align-items: center; gap: 8px;
+}
+.cmpb-slot.full { border-style: solid; border-color: var(--b); background: var(--bl) }
+.cmpb-slot img { width: 40px; height: 26px; object-fit: cover; border-radius: 3px; flex-shrink: 0; background: var(--n200) }
+.cmpb-si { flex: 1; min-width: 0 }
+.cmpb-n { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.cmpb-s { font-size: 10px; color: var(--n400) }
+.cmpb-rm { background: none; border: none; color: var(--n400); cursor: pointer; font-size: 15px; padding: 0; transition: color .12s }
+.cmpb-rm:hover { color: var(--red) }
+.cmpb-empty { font-size: 12px; color: var(--n400) }
+.cmpb-acts { display: flex; gap: 8px; flex-shrink: 0 }
+.btn-cmpb {
+  background: var(--ink); color: #fff;
+  padding: 10px 22px; border-radius: var(--r12);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  border: none; transition: all .18s;
+}
+.btn-cmpb:hover { background: var(--b) }
+.btn-cmpb-clr {
+  background: transparent; border: 1.5px solid var(--n200);
+  color: var(--n600); padding: 9px 14px; border-radius: var(--r12);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+
+/* ════════════════════════════════════
+   VERSION MODAL (bottom sheet)
+════════════════════════════════════ */
+.vm-over {
+  position: fixed; inset: 0; background: rgba(20,20,20,.55);
+  z-index: 500; display: none; align-items: flex-end;
+  justify-content: center; backdrop-filter: blur(6px);
+}
+.vm-over.on { display: flex }
+.vm-sheet {
+  background: var(--n0); border-radius: var(--r24) var(--r24) 0 0;
+  width: 100%; max-width: 900px; max-height: 90vh;
+  display: flex; flex-direction: column;
+  animation: slideUp .32s cubic-bezier(.34,1.26,.64,1);
+}
+.vm-pill { width: 36px; height: 4px; background: var(--n300); border-radius: 2px; margin: 10px auto 0 }
+.vm-h {
+  padding: 18px 26px 16px; border-bottom: 1px solid var(--n100);
+  display: flex; gap: 14px; align-items: center; flex-shrink: 0;
+}
+.vm-h-fb { width: 100px; height: 58px; border-radius: var(--r12); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 36px }
+.vm-h-img { width: 100px; height: 58px; border-radius: var(--r12); object-fit: cover; flex-shrink: 0; background: var(--n100) }
+.vm-h-brand { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--n400); margin-bottom: 3px }
+.vm-h-model { font-family: var(--serif); font-size: 22px; font-weight: 900; letter-spacing: -.04em }
+.vm-h-meta { font-size: 12px; color: var(--n400); margin-top: 3px }
+.vm-x { width: 32px; height: 32px; border-radius: 50%; background: var(--n100);
+  border: none; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-left: auto; transition: background .12s }
+.vm-x:hover { background: var(--n200) }
+.vm-tb {
+  display: flex; gap: 5px; padding: 12px 26px;
+  border-bottom: 1px solid var(--n100);
+  flex-wrap: wrap; flex-shrink: 0; background: var(--n50);
+}
+.vm-tb-btn {
+  font-size: 11px; font-weight: 700; padding: 5px 14px;
+  border-radius: 999px; border: 1.5px solid var(--n200);
+  cursor: pointer; background: var(--n0); color: var(--n500);
+  transition: all .14s; font-family: var(--sans);
+}
+.vm-tb-btn.on { background: var(--ink); border-color: var(--ink); color: #fff }
+.vm-body { overflow-y: auto; padding: 14px 26px 8px; flex: 1 }
+
+/* Version row */
+.ver-row {
+  background: var(--n50); border: 2px solid var(--n200);
+  border-radius: var(--r16); padding: 16px 20px;
+  margin-bottom: 10px; cursor: pointer;
+  transition: all .18s;
+  display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+}
+.ver-row:hover { border-color: var(--n300); background: var(--n100) }
+.ver-row.vsel { border-color: var(--b); background: var(--bl) }
+.ver-row.vadd { opacity: .4 }
+.ver-finish {
+  font-size: 15px; font-weight: 800; letter-spacing: -.02em;
+  margin-bottom: 5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.vtp { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em;
+  padding: 2px 8px; border-radius: 999px }
+.vtp-gas  { background: #FEF3C7; color: #92400E }
+.vtp-die  { background: #F1F5F9; color: #475569 }
+.vtp-hev  { background: #D1FAE5; color: #065F46 }
+.vtp-phev { background: #CCFBF1; color: #0F766E }
+.vtp-bev  { background: #DBEAFE; color: #1D4ED8 }
+.ver-motor { font-size: 13px; color: var(--n500); margin-bottom: 8px }
+.ver-specs { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--n600); margin-bottom: 8px }
+.vrs-it { display: flex; align-items: center; gap: 4px }
+.vrs-l { color: var(--n400); font-size: 11px }
+.ver-extras { display: flex; gap: 4px; flex-wrap: wrap }
+.vext { font-size: 10px; background: var(--n0); border: 1px solid var(--n200); padding: 2px 8px; border-radius: 999px; color: var(--n500) }
+.ver-r { text-align: right }
+.ver-price {
+  font-family: var(--serif); font-size: 22px; font-weight: 900; letter-spacing: -.04em;
+}
+.ver-moves { font-size: 10px; color: var(--g); font-weight: 700; margin-top: 2px }
+.ver-tco { font-size: 12px; font-weight: 700; color: var(--b); margin-top: 4px; font-family: var(--mono) }
+.ver-btn {
+  display: block; margin-top: 10px; padding: 7px 16px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; border: 1.5px solid var(--n200);
+  background: var(--n0); color: var(--n700); cursor: pointer;
+  font-family: var(--sans); transition: all .14s; text-align: center;
+}
+.ver-btn:hover { border-color: var(--b); color: var(--b) }
+.ver-row.vsel .ver-btn { background: var(--b); border-color: var(--b); color: #fff }
+.vm-foot {
+  padding: 14px 26px; border-top: 1px solid var(--n200);
+  display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+}
+.vm-hint { font-size: 13px; color: var(--n500) }
+.vm-hint strong { color: var(--ink) }
+.btn-vm-add {
+  background: var(--ink); color: #fff;
+  padding: 11px 26px; border-radius: var(--r12);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  border: none; transition: all .18s; display: flex; align-items: center; gap: 8px;
+}
+.btn-vm-add:hover { background: var(--b) }
+.btn-vm-add:disabled { background: var(--n300); color: var(--n500); cursor: default }
+
+/* ════════════════════════════════════
+   TCO RESULT MODAL
+════════════════════════════════════ */
+.res-over {
+  position: fixed; inset: 0; background: rgba(20,20,20,.6);
+  z-index: 600; display: none; overflow-y: auto;
+  padding: 24px; backdrop-filter: blur(8px);
+}
+.res-over.on { display: block }
+.res-modal {
+  background: var(--paper); border-radius: var(--r24);
+  max-width: 1100px; margin: 0 auto;
+  overflow: hidden; box-shadow: var(--s5);
+  animation: fadeUp .3s ease;
+}
+.res-h {
+  background: var(--n0); padding: 24px 32px;
+  border-bottom: 1px solid var(--n200);
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.res-h-left {}
+.res-h-title { font-family: var(--serif); font-size: 26px; font-weight: 900; letter-spacing: -.04em }
+.res-h-formula {
+  font-family: var(--mono); font-size: 10px; color: var(--n400);
+  margin-top: 6px; letter-spacing: .02em;
+}
+.res-close { width: 32px; height: 32px; border-radius: 50%; background: var(--n100);
+  border: none; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; transition: background .12s }
+.res-close:hover { background: var(--n200) }
+.res-body { padding: 24px 32px }
+
+/* TCO hero metrics */
+.tco-hero {
+  background: var(--ink); border-radius: var(--r20); padding: 28px;
+  margin-bottom: 20px; position: relative; overflow: hidden;
+}
+.tco-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 80% at 0 50%, rgba(15,52,96,.5), transparent 60%);
+}
+.tco-hero-inner { position: relative }
+.tco-hero-label { font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .12em; color: rgba(255,255,255,.35); margin-bottom: 8px }
+.tco-hero-v {
+  font-family: var(--serif);
+  font-size: clamp(40px, 7vw, 64px); font-weight: 900;
+  color: #fff; letter-spacing: -.05em; line-height: 1;
+  margin-bottom: 4px;
+}
+.tco-hero-v span { font-size: .4em; color: rgba(255,255,255,.4); font-weight: 400; font-family: var(--sans) }
+.tco-hero-sub { font-size: 12px; color: rgba(255,255,255,.35); margin-bottom: 20px }
+.tco-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px }
+.tco-kpi { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: var(--r12); padding: 12px }
+.kpi-v { font-size: 22px; font-weight: 900; color: #93C5FD; font-family: var(--mono); letter-spacing: -.03em }
+.kpi-l { font-size: 10px; text-transform: uppercase; letter-spacing: .09em; color: rgba(255,255,255,.3); margin-top: 3px }
+
+/* Afford card */
+.afford-card { border-radius: var(--r16); padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px }
+.ac-ok   { background: var(--gl); border: 1px solid #6EE7B7 }
+.ac-warn { background: var(--aml); border: 1px solid #FCD34D }
+.ac-over { background: var(--rl); border: 1px solid #FECACA }
+.ac-none { background: var(--n100); border: 1px solid var(--n200) }
+.aff-ic { font-size: 26px; flex-shrink: 0 }
+.aff-body {}
+.aff-s { font-size: 14px; font-weight: 800; margin-bottom: 3px }
+.aff-d { font-size: 12px; line-height: 1.55 }
+.aff-bar-w { margin-top: 8px; height: 5px; background: rgba(0,0,0,.08); border-radius: 999px; overflow: hidden }
+.aff-bar-f { height: 100%; border-radius: 999px; transition: width .5s ease }
+
+/* Breakdown */
+.breakdown { background: var(--n0); border: 1px solid var(--n200); border-radius: var(--r20); overflow: hidden; margin-bottom: 16px }
+.bk-h { padding: 18px 24px; border-bottom: 1px solid var(--n100); display: flex; justify-content: space-between; align-items: center }
+.bk-title { font-size: 15px; font-weight: 800; letter-spacing: -.02em }
+.bk-period { font-size: 12px; color: var(--n400); font-family: var(--mono) }
+.bk-body { padding: 18px 24px }
+.bk-item { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--n100) }
+.bk-item:last-child { border: none }
+.bk-dot { width: 9px; height: 9px; border-radius: 2px; flex-shrink: 0 }
+.bk-l { flex: 1.5 }
+.bk-label { font-size: 13px; font-weight: 600; color: var(--n700) }
+.bk-sub { font-size: 10px; color: var(--n400) }
+.bk-bar-w { flex: 1; max-width: 100px; height: 5px; background: var(--n100); border-radius: 999px; overflow: hidden }
+.bk-bar-f { height: 100%; border-radius: 999px; transition: width .4s ease }
+.bk-val { font-size: 13px; font-weight: 800; font-family: var(--mono); min-width: 75px; text-align: right }
+.bk-pct { font-size: 10px; color: var(--n400); min-width: 30px; text-align: right; font-family: var(--mono) }
+.bk-formula { background: var(--n50); border-top: 1px solid var(--n200); padding: 12px 24px }
+.bk-formula-txt { font-family: var(--mono); font-size: 10px; color: var(--n400); line-height: 1.7 }
+.bk-total { display: flex; justify-content: space-between; align-items: center;
+  padding-top: 12px; border-top: 2px solid var(--n200); margin-top: 4px }
+.bk-tl { font-size: 14px; font-weight: 800 }
+.bk-tv { font-family: var(--serif); font-size: 20px; font-weight: 900; color: var(--b); letter-spacing: -.04em }
+
+/* Charts */
+.res-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px }
+.chart-box { background: var(--n0); border: 1px solid var(--n200); border-radius: var(--r20); padding: 22px }
+.chart-t { font-size: 14px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 3px }
+.chart-s { font-size: 11px; color: var(--n400); margin-bottom: 16px }
+.chart-h { position: relative; height: 200px }
+
+/* Save study */
+.save-box { background: var(--n0); border: 1px solid var(--n200); border-radius: var(--r20); padding: 24px; text-align: center }
+.save-box-t { font-family: var(--serif); font-size: 18px; font-weight: 900; letter-spacing: -.03em; margin-bottom: 6px }
+.save-box-s { font-size: 13px; color: var(--n500); margin-bottom: 20px; line-height: 1.6 }
+.btn-save { width: 100%; background: var(--ink); color: #fff; padding: 14px; border-radius: var(--r12); font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: all .2s; font-family: var(--sans) }
+.btn-save:hover { background: var(--b); transform: translateY(-1px) }
+.btn-save.saved { background: var(--g) }
+
+/* ════════════════════════════════════
+   AUTH MODAL
+════════════════════════════════════ */
+.auth-over {
+  position: fixed; inset: 0; background: rgba(20,20,20,.6);
+  z-index: 700; display: none; align-items: center;
+  justify-content: center; padding: 20px; backdrop-filter: blur(10px);
+}
+.auth-over.on { display: flex }
+.auth-modal {
+  background: var(--n0); border-radius: var(--r24);
+  width: 100%; max-width: 440px;
+  overflow: hidden; box-shadow: var(--s5);
+  animation: fadeUp .32s cubic-bezier(.34,1.56,.64,1);
+}
+.auth-top { background: var(--ink); padding: 32px 32px 28px; position: relative }
+.auth-logo { font-family: var(--serif); font-size: 22px; font-weight: 900; color: #fff; display: flex; align-items: center; gap: 6px; margin-bottom: 4px }
+.auth-tagline { font-size: 12px; color: rgba(255,255,255,.35) }
+.auth-x { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,.1); border: none; color: #fff; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center }
+.auth-tabs { display: flex; border-bottom: 1px solid var(--n200) }
+.auth-tab { flex: 1; padding: 14px; text-align: center; font-size: 13px; font-weight: 600; color: var(--n500); cursor: pointer; border: none; background: transparent; border-bottom: 2px solid transparent; transition: all .18s; font-family: var(--sans) }
+.auth-tab.on { color: var(--b); border-bottom-color: var(--b) }
+.auth-body { padding: 26px 28px }
+.auth-err { background: var(--rl); border-left: 3px solid var(--red); color: var(--red); font-size: 12px; padding: 10px 14px; border-radius: var(--r8); margin-bottom: 14px; display: none }
+.auth-err.on { display: block }
+.auth-privacy-note { background: var(--bl); border: 1px solid var(--bm); border-radius: var(--r8); padding: 10px 14px; font-size: 11px; color: var(--b); margin-bottom: 16px; line-height: 1.6 }
+.af { margin-bottom: 14px }
+.al { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--n500); margin-bottom: 5px; display: block }
+.ai { width: 100%; border: 1.5px solid var(--n200); border-radius: var(--r8); padding: 11px 13px; font-size: 14px; color: var(--ink); transition: border .14s; background: var(--n50); font-family: var(--sans) }
+.ai:focus { border-color: var(--b); background: var(--n0) }
+.ai::placeholder { color: var(--n400) }
+.a2c { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
+.btn-auth { width: 100%; background: var(--b); color: #fff; border-radius: var(--r8); padding: 12px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; transition: all .18s; margin-bottom: 14px; font-family: var(--sans) }
+.btn-auth:hover { background: var(--b2); transform: translateY(-1px) }
+.auth-or { text-align: center; font-size: 11px; color: var(--n400); margin: 0 0 14px; position: relative }
+.auth-or::before, .auth-or::after { content: ''; position: absolute; top: 50%; width: calc(50% - 18px); height: 1px; background: var(--n200) }
+.auth-or::before { left: 0 }
+.auth-or::after { right: 0 }
+.auth-soc { display: flex; gap: 8px }
+.auth-socb { flex: 1; background: var(--n0); border: 1.5px solid var(--n200); border-radius: var(--r8); padding: 10px; font-size: 12px; font-weight: 600; color: var(--n700); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all .14s; font-family: var(--sans) }
+.auth-socb:hover { border-color: var(--n300); background: var(--n50) }
+.auth-fn { font-size: 11px; color: var(--n400); text-align: center; padding: 12px 28px 16px; background: var(--n50); border-top: 1px solid var(--n100); line-height: 1.6 }
+
+/* ════════════════════════════════════
+   LANDING — editorial sections
+════════════════════════════════════ */
+.land-section { padding: 80px 0 }
+.land-section-alt { padding: 80px 0; background: var(--n0) }
+
+/* About / manifesto */
+.manifesto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; margin-top: 48px }
+.manifesto-text { font-family: var(--serif); font-size: clamp(22px,3vw,32px); font-weight: 700; line-height: 1.3; letter-spacing: -.03em; color: var(--ink) }
+.manifesto-text em { font-style: italic; color: var(--ac) }
+.manifesto-points { display: flex; flex-direction: column; gap: 20px }
+.mp { display: flex; gap: 16px }
+.mp-num { font-family: var(--mono); font-size: 12px; color: var(--ac); font-weight: 700; flex-shrink: 0; margin-top: 3px }
+.mp-body {}
+.mp-t { font-size: 14px; font-weight: 700; margin-bottom: 4px }
+.mp-d { font-size: 13px; color: var(--n500); line-height: 1.6 }
+
+/* Awards strip */
+.awards-strip {
+  background: var(--ink); padding: 60px 0; overflow: hidden;
+}
+.awards-scroll { display: flex; gap: 14px; overflow-x: auto; padding: 0 24px 8px; scrollbar-width: none }
+.award-pill {
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--r20); padding: 20px 22px; min-width: 200px; flex-shrink: 0;
+  cursor: pointer; transition: all .2s;
+}
+.award-pill:hover { background: rgba(255,255,255,.09); transform: translateY(-3px) }
+.award-pill.danger { border-color: rgba(200,16,46,.3) }
+.ap-ic { font-size: 24px; margin-bottom: 10px }
+.ap-cat { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; color: #F59E0B; margin-bottom: 6px }
+.ap-cat.danger { color: #F87171 }
+.ap-winner { font-family: var(--serif); font-size: 15px; font-weight: 900; color: #fff; margin-bottom: 3px; letter-spacing: -.03em }
+.ap-sub { font-size: 11px; color: rgba(255,255,255,.35) }
+
+/* CTA */
+.cta-section {
+  background: linear-gradient(135deg, var(--b2) 0%, var(--b) 100%);
+  padding: 100px 24px; text-align: center; position: relative; overflow: hidden;
+}
+.cta-section::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.cta-section > * { position: relative }
+.cta-h { font-family: var(--serif); font-size: clamp(28px,5vw,52px); font-weight: 900; color: #fff; letter-spacing: -.04em; margin-bottom: 14px }
+.cta-sub { font-size: 17px; color: rgba(255,255,255,.45); margin-bottom: 36px; font-weight: 300 }
+.btn-cta { background: #fff; color: var(--b); padding: 16px 44px; border-radius: 999px; font-size: 16px; font-weight: 800; cursor: pointer; border: none; transition: all .25s; font-family: var(--sans); letter-spacing: -.02em }
+.btn-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,.25) }
+
+/* Footer */
+.land-footer { background: var(--ink); color: rgba(255,255,255,.4); padding: 48px 0 28px }
+.lf-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px }
+.lf-logo { font-family: var(--serif); font-size: 20px; font-weight: 900; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 6px }
+.lf-desc { font-size: 12px; color: rgba(255,255,255,.3); line-height: 1.7 }
+.lf-ct { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.25); margin-bottom: 14px }
+.lf-l { display: block; font-size: 13px; color: rgba(255,255,255,.45); margin-bottom: 9px; cursor: pointer; transition: color .12s }
+.lf-l:hover { color: #fff }
+.lf-bot { border-top: 1px solid rgba(255,255,255,.07); padding-top: 24px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 12px }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 90px; right: 24px;
+  background: var(--ink); color: #fff;
+  padding: 12px 20px; border-radius: var(--r20);
+  font-size: 13px; font-weight: 500;
+  box-shadow: var(--s5); z-index: 900;
+  display: none; align-items: center; gap: 10px; max-width: 280px;
+}
+.toast.on { display: flex; animation: fadeUp .3s ease }
+.toast.tok { background: var(--g) }
+.toast.terr { background: var(--red) }
+
+/* ════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════ */
+.dash-hero { background: var(--ink); padding: 44px 0; position: relative; overflow: hidden }
+.dash-hero::before { content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 65% 100% at 0 50%, rgba(15,52,96,.4), transparent 60%) }
+.dh-inner { position: relative; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 24px }
+.dh-greet { font-size: 12px; color: rgba(255,255,255,.35); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .09em }
+.dh-name { font-family: var(--serif); font-size: clamp(22px,3vw,34px); font-weight: 900; color: #fff; letter-spacing: -.04em; margin-bottom: 5px }
+.dh-sub { font-size: 13px; color: rgba(255,255,255,.35); font-weight: 300 }
+.dh-stats { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap }
+.dhs { background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); border-radius: var(--r12); padding: 13px 18px; min-width: 105px }
+.dhs-v { font-family: var(--mono); font-size: 22px; font-weight: 900; color: #93C5FD; letter-spacing: -.03em }
+.dhs-l { font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.3); margin-top: 3px }
+.dh-acts { display: flex; gap: 10px; flex-wrap: wrap }
+.btn-dh-p { background: var(--ac); color: #fff; padding: 11px 24px; border-radius: 999px; font-size: 13px; font-weight: 700; cursor: pointer; border: none; transition: all .18s; font-family: var(--sans) }
+.btn-dh-p:hover { background: #A00D24; transform: translateY(-1px) }
+.btn-dh-s { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15); color: #fff; padding: 11px 20px; border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all .18s; font-family: var(--sans) }
+.btn-dh-s:hover { background: rgba(255,255,255,.18) }
+
+.dash-content { padding: 28px 0 }
+.dash-grid { display: grid; grid-template-columns: 1fr 320px; gap: 18px }
+.d-card { background: var(--n0); border: 1px solid var(--n200); border-radius: var(--r20); overflow: hidden }
+.dc-h { padding: 16px 20px; border-bottom: 1px solid var(--n100); display: flex; justify-content: space-between; align-items: center }
+.dc-t { font-size: 14px; font-weight: 800; letter-spacing: -.02em }
+.dc-a { font-size: 12px; font-weight: 700; color: var(--b); background: none; border: none; cursor: pointer; padding: 5px 10px; border-radius: var(--r8); transition: background .12s; font-family: var(--sans) }
+.dc-a:hover { background: var(--bl) }
+
+.strow { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--n100); cursor: pointer; transition: background .12s }
+.strow:last-child { border: none }
+.strow:hover { background: var(--n50) }
+.strow-ic { width: 40px; height: 40px; border-radius: var(--r12); background: var(--n100); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0 }
+.strow-t { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.strow-s { font-size: 11px; color: var(--n400); margin-top: 2px }
+.strow-m { text-align: right; flex-shrink: 0 }
+.strow-d { font-size: 11px; color: var(--n400) }
+.strow-b { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--gl); color: var(--g); display: block; margin-top: 3px }
+
+/* Rate card */
+.rate-card { background: var(--ink); border-radius: var(--r20); padding: 22px; color: #fff }
+.rc-l { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: rgba(255,255,255,.35); margin-bottom: 7px }
+.rc-v { font-family: var(--mono); font-size: 40px; font-weight: 900; color: #93C5FD; letter-spacing: -.05em; line-height: 1 }
+.rc-s { font-size: 11px; color: rgba(255,255,255,.35); margin-top: 5px }
+.rc-rows { margin-top: 16px; display: flex; flex-direction: column; gap: 6px }
+.rc-row { display: flex; justify-content: space-between; font-size: 11px }
+.rcrl { color: rgba(255,255,255,.35) }
+.rcrv { font-weight: 700; font-family: var(--mono) }
+.rc-src { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.08); font-size: 10px; color: rgba(255,255,255,.2) }
+
+/* Responsive */
+@media (max-width: 1100px) { .lf-grid { grid-template-columns: 1fr 1fr } .manifesto-grid { grid-template-columns: 1fr } .dash-grid { grid-template-columns: 1fr } .res-charts { grid-template-columns: 1fr } .nav-links { display: none } }
+@media (max-width: 900px) { #sec-catalog > div { grid-template-columns: 1fr !important } #sec-catalog > div > div:first-child { position: static !important; max-height: none !important } }
+@media (max-width: 900px) { .hero-stats { grid-template-columns: 1fr 1fr } .tco-kpis { grid-template-columns: 1fr 1fr } }
+@media (max-width: 640px) { .hero-stats { grid-template-columns: 1fr 1fr } .lf-grid { grid-template-columns: 1fr } .bk-bar-w { display: none } .app-tabs .a-tab:not(.on) { display: none } }
+</style>
+</head>
+<body>
+
+<!-- ══ LANDING ══════════════════════════════════════ -->
+<div id="landing">
+
+  <!-- NAV -->
+  <nav class="land-nav" id="landNav">
+    <div class="wrap" style="max-width:1280px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;width:100%">
+      <div class="logo logo-white" onclick="showApp()">
+        <div class="logo-dot"></div>AutoCoste
+      </div>
+      <div class="nav-links">
+        <button class="nav-link" onclick="scrollTo('mani')">Metodología</button>
+        <button class="nav-link" onclick="scrollTo('awards')">Análisis</button>
+        <button class="nav-link" onclick="scrollTo('cta')">Estudios</button>
+      </div>
+      <div class="nav-actions">
+        <button class="btn-ghost" onclick="openAuth('login')">Entrar</button>
+        <button class="btn-primary" onclick="showApp()">Calcular gratis →</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-grain"></div>
+    <div class="hero-lines"></div>
+    <div class="hero-glow"></div>
+    <div class="hero-inner">
+      <div class="hero-eyebrow"><div class="hero-eyebrow-dot"></div>Herramienta de servicio público · Sin agenda comercial</div>
+      <h1 class="hero-h">El coste <em>real</em><br>de tu próximo <span class="accent">coche</span></h1>
+      <div class="hero-rule"></div>
+      <p class="hero-sub">Metodología TCO académica con todos los costes reales: depreciación, financiación, energía, seguro, mantenimiento, impuestos y más. Para cualquier coche nuevo en España.</p>
+      <div class="hero-manifesto">
+        <div class="hm-item"><div class="hm-dot"></div>Sin publicidad</div>
+        <div class="hm-item"><div class="hm-dot"></div>Sin comisiones de concesionarios</div>
+        <div class="hm-item"><div class="hm-dot"></div>Sin registro obligatorio</div>
+        <div class="hm-item"><div class="hm-dot"></div>Fórmulas transparentes</div>
+      </div>
+      <div class="hero-search-wrap">
+        <span style="font-size:16px;flex-shrink:0">🔍</span>
+        <input class="hero-search-input" id="heroSearch" placeholder="Busca un modelo… Toyota Yaris HEV, Kia EV3, Dacia Sandero…" onkeydown="if(event.key==='Enter'){showApp();setTimeout(()=>{document.getElementById('catSearch').value=this.value;filterSearch()},200)}">
+        <button class="hero-search-btn" onclick="showApp()">Calcular TCO <span>→</span></button>
+      </div>
+      <div class="hero-tags">
+        <div class="hero-tag" onclick="launchFilter('electrico')">⚡ Eléctricos</div>
+        <div class="hero-tag" onclick="launchFilter('hibrido')">🔋 Híbridos HEV</div>
+        <div class="hero-tag" onclick="launchFilter('phev')">🔌 PHEV</div>
+        <div class="hero-tag" onclick="launchFilter('gasolina')">⛽ Gasolina</div>
+        <div class="hero-tag" onclick="launchFilter('diesel')">🛢 Diésel</div>
+        <div class="hero-tag" onclick="showApp()">🏆 Premios TCO</div>
+      </div>
+    </div>
+    <div class="hero-stats">
+      <div class="hs-item"><span class="hs-n">344</span><span class="hs-l">Modelos disponibles</span></div>
+      <div class="hs-item"><span class="hs-n">1.400+</span><span class="hs-l">Versiones y acabados</span></div>
+      <div class="hs-item"><span class="hs-n">9</span><span class="hs-l">Componentes de coste</span></div>
+      <div class="hs-item"><span class="hs-n">0€</span><span class="hs-l">Coste para el usuario</span></div>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div class="ticker-bar">
+    <div class="ticker-track">
+      <div class="ti"><span class="ti-k">TAE BdE</span> 6,85%</div>
+      <div class="ti"><span class="ti-k">Gasolina 95</span> 1,62€/L</div>
+      <div class="ti"><span class="ti-k">Diésel</span> 1,51€/L</div>
+      <div class="ti"><span class="ti-k">Electricidad valle</span> 0,09€/kWh</div>
+      <div class="ti"><span class="ti-k">Electricidad punta</span> 0,28€/kWh</div>
+      <div class="ti"><span class="ti-k">MOVES III BEV</span> <span class="ti-g">7.000€</span></div>
+      <div class="ti"><span class="ti-k">MOVES III PHEV</span> <span class="ti-g">4.500€</span></div>
+      <div class="ti"><span class="ti-k">Euríbor 12m</span> 2,38%</div>
+      <div class="ti"><span class="ti-k">Depreciación BEV 5a</span> ~42%</div>
+      <div class="ti"><span class="ti-k">TCO subido desde 2020</span> <span class="ti-r">+27%</span></div>
+      <div class="ti"><span class="ti-k">TAE BdE</span> 6,85%</div>
+      <div class="ti"><span class="ti-k">Gasolina 95</span> 1,62€/L</div>
+      <div class="ti"><span class="ti-k">Diésel</span> 1,51€/L</div>
+      <div class="ti"><span class="ti-k">Electricidad valle</span> 0,09€/kWh</div>
+      <div class="ti"><span class="ti-k">Electricidad punta</span> 0,28€/kWh</div>
+      <div class="ti"><span class="ti-k">MOVES III BEV</span> <span class="ti-g">7.000€</span></div>
+    </div>
+  </div>
+
+  <!-- MANIFESTO -->
+  <div class="land-section" id="mani">
+    <div class="wrap">
+      <div class="sec-eyebrow">Por qué existe AutoCoste</div>
+      <div class="manifesto-grid">
+        <div>
+          <div class="manifesto-text">Comprar un coche es la <em>segunda decisión financiera más grande</em> que toma una familia española. Se hace con información incompleta.</div>
+        </div>
+        <div class="manifesto-points">
+          <div class="mp"><div class="mp-num">01</div><div class="mp-body"><div class="mp-t">Sin sesgos comerciales</div><div class="mp-d">No cobramos comisiones a concesionarios. No tenemos acuerdos con fabricantes. El análisis es matemáticamente neutral.</div></div></div>
+          <div class="mp"><div class="mp-num">02</div><div class="mp-body"><div class="mp-t">Metodología académica</div><div class="mp-d">Fórmula TCO completa con 9 componentes de coste: depreciación, financiación, energía real, seguro, mantenimiento, neumáticos, IVTM, ITV y costes contextuales.</div></div></div>
+          <div class="mp"><div class="mp-num">03</div><div class="mp-body"><div class="mp-t">Datos para estudios de mercado</div><div class="mp-d">Los estudios realizados de forma anónima nos permiten publicar análisis del mercado automovilístico español. Nunca datos individuales.</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AWARDS / ANÁLISIS DESTACADOS -->
+  <div class="awards-strip" id="awards">
+    <div class="wrap" style="margin-bottom:24px">
+      <div class="sec-eyebrow" style="color:#F59E0B">Análisis AutoCoste 2025</div>
+      <h2 class="sec-h" style="color:#fff">Vehículos destacados por categoría</h2>
+    </div>
+    <div class="awards-scroll">
+      <div class="award-pill" onclick="launchFilter('hibrido')"><div class="ap-ic">🏆</div><div class="ap-cat">MEJOR TCO 2025</div><div class="ap-winner">Toyota Yaris HEV</div><div class="ap-sub">Hibr. · 116cv · desde 24.400€</div></div>
+      <div class="award-pill" onclick="launchFilter('electrico')"><div class="ap-ic">⭐</div><div class="ap-cat">MEJOR EV 2025</div><div class="ap-winner">Kia EV3</div><div class="ap-sub">Eléctrico · 204cv · desde 34.900€</div></div>
+      <div class="award-pill" onclick="launchFilter('phev')"><div class="ap-ic">🌱</div><div class="ap-cat">MEJOR PHEV 2025</div><div class="ap-winner">Toyota RAV4 PHEV</div><div class="ap-sub">PHEV · 306cv · desde 48.900€</div></div>
+      <div class="award-pill" onclick="launchFilter('hibrido')"><div class="ap-ic">🛡</div><div class="ap-cat">MÁS FIABLE 2025</div><div class="ap-winner">Lexus UX 250h</div><div class="ap-sub">Hibr. · 93/100 fiabilidad OCU</div></div>
+      <div class="award-pill" onclick="launchFilter('gasolina')"><div class="ap-ic">💶</div><div class="ap-cat">MEJOR ACCESO 2025</div><div class="ap-winner">Dacia Sandero</div><div class="ap-sub">Gas. · desde 10.990€</div></div>
+      <div class="award-pill danger" onclick="showApp()"><div class="ap-ic">⚠️</div><div class="ap-cat danger">AVISO COMPRADORES</div><div class="ap-winner">Marcas chinas nuevas</div><div class="ap-sub">Red de talleres insuficiente en España</div></div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-section" id="cta">
+    <h2 class="cta-h">Calcula el coste real<br>de tu próximo coche</h2>
+    <p class="cta-sub">Sin registro. Sin trampa. Sin publicidad.</p>
+    <button class="btn-cta" onclick="showApp()">Empezar — es gratis</button>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="land-footer">
+    <div class="wrap">
+      <div class="lf-grid">
+        <div>
+          <div class="lf-logo"><div class="logo-dot"></div>AutoCoste</div>
+          <div class="lf-desc">Herramienta de cálculo TCO vehicular para el mercado español. Sin agenda comercial, sin publicidad, sin comisiones. Metodología basada en estándares Arval/ALD y Eurotax.</div>
+        </div>
+        <div>
+          <div class="lf-ct">Herramienta</div>
+          <a class="lf-l" onclick="showApp()">Calculadora TCO</a>
+          <a class="lf-l" onclick="showApp()">Comparador</a>
+          <a class="lf-l" onclick="showApp()">Todos los modelos</a>
+        </div>
+        <div>
+          <div class="lf-ct">Metodología</div>
+          <a class="lf-l" onclick="scrollTo('mani')">Fórmula TCO</a>
+          <a class="lf-l">Fuentes de datos</a>
+          <a class="lf-l">Estudios de mercado</a>
+        </div>
+        <div>
+          <div class="lf-ct">Legal</div>
+          <a class="lf-l">Privacidad</a>
+          <a class="lf-l">Cookies</a>
+          <a class="lf-l">RGPD</a>
+        </div>
+      </div>
+      <div class="lf-bot">
+        <div>© 2025 AutoCoste · Datos con fines informativos, no constituyen asesoramiento financiero</div>
+        <div>Precios y datos actualizados regularmente · Fuente: configuradores oficiales + Eurotax + BdE</div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ══ APP ═══════════════════════════════════════════ -->
+<div id="app" style="display:none">
+
+  <!-- APP NAV -->
+  <nav class="app-nav">
+    <div class="app-nav-inner">
+      <div class="app-logo" onclick="backToLanding()"><div class="logo-dot"></div>AutoCoste</div>
+      <div class="app-tabs">
+        <button class="a-tab on" id="tab-cat" onclick="showSec('catalog')">🚗 Catálogo</button>
+        <button class="a-tab" id="tab-cmp" onclick="showSec('compare')">⚖️ Comparar <span id="cmpBadge" style="display:none;background:var(--ac);color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;margin-left:2px"></span></button>
+        <button class="a-tab" id="tab-st"  onclick="showSec('studies')">📊 Mis estudios</button>
+        <button class="a-tab" id="tab-mkt" onclick="showSec('market')">📈 Mercado</button>
+      </div>
+      <div class="app-nav-r">
+        <div class="mkt-pill"><div class="live-dot"></div>Gas 1,62€</div>
+        <div class="av-wrap">
+          <button class="avatar-btn" id="avBtn" onclick="toggleAvDrop()">?</button>
+          <div class="av-drop" id="avDrop">
+            <div class="avd-head"><div class="avd-name" id="avName">Invitado</div><div class="avd-email" id="avEmail">Sin cuenta</div></div>
+            <div class="avd-item" onclick="openAuth('login')" id="avLogin">🔑 Iniciar sesión</div>
+            <div class="avd-item" onclick="openAuth('reg')" id="avReg">✨ Crear cuenta gratis</div>
+            <div class="avd-item danger" onclick="logout()" id="avLogout" style="display:none">↩ Cerrar sesión</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CATALOG -->
+  <div id="sec-catalog" class="sec on">
+    <div style="max-width:1280px;margin:0 auto;padding:24px 24px 0;display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start">
+
+      <!-- ── PANEL IZQUIERDO: Filtros + Perfil financiero ── -->
+      <div style="position:sticky;top:76px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 96px);overflow-y:auto;padding-bottom:20px;scrollbar-width:thin">
+
+        <!-- Búsqueda -->
+        <div style="background:var(--n0);border:1px solid var(--n200);border-radius:var(--r16);padding:14px 16px">
+          <input id="catSearch" type="text" placeholder="🔍 Buscar marca o modelo…"
+            style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:9px 14px;font-size:13px;font-family:var(--sans);background:var(--n50);color:var(--ink)"
+            oninput="filterSearch()">
+        </div>
+
+        <!-- Tipo de motor -->
+        <div style="background:var(--n0);border:1px solid var(--n200);border-radius:var(--r16);overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--n100);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--n400)">Tipo de motor</div>
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:5px">
+            <div class="fp on" data-f="all" onclick="setFuelF(this)" style="border-radius:var(--r8);text-align:left">Todos los modelos</div>
+            <div class="fp gas" data-f="gasolina" onclick="setFuelF(this)" style="border-radius:var(--r8);text-align:left">⛽ Gasolina</div>
+            <div class="fp die" data-f="diesel" onclick="setFuelF(this)" style="border-radius:var(--r8);text-align:left">🛢 Diésel</div>
+            <div class="fp hev" data-f="hibrido" onclick="setFuelF(this)" style="border-radius:var(--r8);text-align:left">🔋 Híbrido HEV</div>
+            <div class="fp phev" data-f="phev" onclick="setFuelF(this)" style="border-radius:var(--r8);text-align:left">🔌 Plug-in Hybrid</div>
+            <div class="fp bev" data-f="electrico" onclick="setFuelF(this)" style="border-radius:var(--r8);text-align:left">⚡ Eléctrico puro</div>
+          </div>
+        </div>
+
+        <!-- Perfil financiero -->
+        <div style="background:var(--n0);border:1px solid var(--n200);border-radius:var(--r16);overflow:hidden">
+          <div style="padding:12px 16px;border-bottom:1px solid var(--n100);display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--n400)">Mi perfil financiero</div>
+            <div id="prf-indicator" style="display:none;width:7px;height:7px;background:#34D399;border-radius:50%"></div>
+          </div>
+          <div style="padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--n500);display:block;margin-bottom:5px">Salario bruto anual (€)</label>
+              <input type="number" id="prf-salario" placeholder="35.000" min="0" max="500000" step="1000"
+                style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:9px 12px;font-size:14px;font-weight:700;font-family:var(--sans);background:var(--n50);color:var(--ink)"
+                oninput="onProfileChange()">
+              <div id="prf-neto-val" style="font-size:10px;color:var(--n400);margin-top:3px"></div>
+            </div>
+
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--n500);display:block;margin-bottom:5px">Capital disponible para entrada (€)</label>
+              <input type="number" id="prf-capital" placeholder="10.000" min="0" max="500000" step="500"
+                style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:9px 12px;font-size:14px;font-weight:700;font-family:var(--sans);background:var(--n50);color:var(--ink)"
+                oninput="onProfileChange()">
+              <div style="font-size:10px;color:var(--n400);margin-top:3px">Ahorro disponible para el vehículo</div>
+            </div>
+
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--n500);display:block;margin-bottom:5px">Otros gastos fijos/mes (€)</label>
+              <input type="number" id="prf-gastos" placeholder="900" min="0" max="10000" step="50"
+                style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:9px 12px;font-size:14px;font-weight:700;font-family:var(--sans);background:var(--n50);color:var(--ink)"
+                oninput="onProfileChange()">
+              <div style="font-size:10px;color:var(--n400);margin-top:3px">Hipoteca, alquiler, seguros…</div>
+            </div>
+
+            <div>
+              <label style="font-size:11px;font-weight:700;color:var(--n500);display:block;margin-bottom:5px">Forma de pago</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--n200);border-radius:var(--r8);overflow:hidden">
+                <button id="prf-fin-btn" onclick="setPrfFin(true)"
+                  style="padding:8px 6px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:var(--sans);background:var(--ink);color:#fff;transition:all .14s">Financiar</button>
+                <button id="prf-cnt-btn" onclick="setPrfFin(false)"
+                  style="padding:8px 6px;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:var(--sans);background:var(--n0);color:var(--n500);transition:all .14s">Al contado</button>
+              </div>
+            </div>
+
+            <div id="prf-fin-fields">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div>
+                  <label style="font-size:10px;font-weight:700;color:var(--n400);display:block;margin-bottom:4px">Plazo</label>
+                  <select id="prf-plazo" onchange="onProfileChange()"
+                    style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:7px 10px;font-size:12px;font-family:var(--sans);background:var(--n50)">
+                    <option value="24">24 m</option><option value="36">36 m</option>
+                    <option value="48">48 m</option><option value="60" selected>60 m</option>
+                    <option value="72">72 m</option><option value="84">84 m</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:10px;font-weight:700;color:var(--n400);display:block;margin-bottom:4px">TAE %</label>
+                  <input type="number" id="prf-tae" value="6.85" step="0.1" min="0" max="20" onchange="onProfileChange()"
+                    style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:7px 10px;font-size:12px;font-family:var(--sans);background:var(--n50)">
+                </div>
+              </div>
+            </div>
+
+            <div id="prf-years-row">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div>
+                  <label style="font-size:10px;font-weight:700;color:var(--n400);display:block;margin-bottom:4px">Años de uso</label>
+                  <select id="prf-years" onchange="onProfileChange()"
+                    style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:7px 10px;font-size:12px;font-family:var(--sans);background:var(--n50)">
+                    <option value="3">3 a.</option><option value="4">4 a.</option>
+                    <option value="5" selected>5 a.</option><option value="6">6 a.</option>
+                    <option value="7">7 a.</option><option value="8">8 a.</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:10px;font-weight:700;color:var(--n400);display:block;margin-bottom:4px">Km/año</label>
+                  <select id="prf-km" onchange="onProfileChange()"
+                    style="width:100%;border:1.5px solid var(--n200);border-radius:var(--r8);padding:7px 10px;font-size:12px;font-family:var(--sans);background:var(--n50)">
+                    <option value="8000">8.000</option><option value="12000">12.000</option>
+                    <option value="15000" selected>15.000</option><option value="20000">20.000</option>
+                    <option value="30000">30.000</option><option value="40000">40.000</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resultado perfil -->
+            <div id="prf-result-mini" style="display:none;background:var(--ink);border-radius:var(--r12);padding:14px">
+              <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.35);margin-bottom:5px">Presupuesto máximo</div>
+              <div id="prf-max-pvp" style="font-family:var(--serif);font-size:26px;font-weight:900;color:#fff;letter-spacing:-.05em;line-height:1;margin-bottom:2px">—</div>
+              <div id="prf-max-sub" style="font-size:10px;color:rgba(255,255,255,.35)"></div>
+              <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                <div style="background:rgba(255,255,255,.07);border-radius:var(--r8);padding:8px;text-align:center">
+                  <div id="prf-neto-mini" style="font-size:14px;font-weight:900;color:#93C5FD;font-family:var(--mono)">—</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:2px">Neto/mes</div>
+                </div>
+                <div style="background:rgba(255,255,255,.07);border-radius:var(--r8);padding:8px;text-align:center">
+                  <div id="prf-max-mes" style="font-size:14px;font-weight:900;color:#34D399;font-family:var(--mono)">—</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.3);margin-top:2px">Máx. coche/mes</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PANEL DERECHO: Catálogo ── -->
+      <div style="padding-bottom:80px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-family:var(--serif);font-size:clamp(20px,3vw,28px);font-weight:900;letter-spacing:-.04em;margin-bottom:3px">Todos los modelos</div>
+            <div id="catCount" style="font-size:12px;color:var(--n400);font-family:var(--mono)">Cargando…</div>
+          </div>
+        </div>
+        <div id="vgrid" class="vgrid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMPARE -->
+  <div id="sec-compare" class="sec">
+    <div class="wrap" style="padding-top:32px">
+      <div class="sec-eyebrow">Comparador</div>
+      <div class="sec-h" style="margin-bottom:8px">Hasta 4 vehículos, lado a lado</div>
+      <div class="sec-sub" style="margin-bottom:28px">Añade vehículos desde el catálogo para compararlos con la fórmula TCO completa</div>
+      <div id="cmpTable"><div style="color:var(--n400);font-size:14px;padding:40px 0;text-align:center">Añade vehículos desde el <strong style="cursor:pointer;color:var(--b)" onclick="showSec('catalog')">catálogo</strong> para compararlos</div></div>
+    </div>
+  </div>
+
+  <!-- STUDIES -->
+  <div id="sec-studies" class="sec">
+    <div class="wrap" style="padding-top:32px">
+      <div class="sec-eyebrow">Mis estudios</div>
+      <div class="sec-h" style="margin-bottom:8px">Estudios guardados</div>
+      <div id="studiesList"><div style="color:var(--n400);font-size:14px;padding:40px 0;text-align:center">Realiza un análisis TCO y guárdalo para consultarlo aquí</div></div>
+    </div>
+  </div>
+
+  <!-- MARKET -->
+  <div id="sec-market" class="sec">
+    <div class="wrap" style="padding-top:32px">
+      <div class="sec-eyebrow">Datos de mercado</div>
+      <div class="sec-h" style="margin-bottom:24px">Precios de referencia — Abril 2025</div>
+      <div class="dash-grid">
+        <div class="d-card">
+          <div class="dc-h"><div class="dc-t">Combustibles y energía</div></div>
+          <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--n100);font-size:13px"><span style="color:var(--n500)">Gasolina 95 (media nacional)</span><strong style="font-family:var(--mono)">1,62 €/L</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--n100);font-size:13px"><span style="color:var(--n500)">Gasoil (media nacional)</span><strong style="font-family:var(--mono)">1,51 €/L</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--n100);font-size:13px"><span style="color:var(--n500)">Electricidad tarifa Valle (2.0TD)</span><strong style="font-family:var(--mono)">0,09 €/kWh</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--n100);font-size:13px"><span style="color:var(--n500)">Electricidad tarifa Punta</span><strong style="font-family:var(--mono)">0,28 €/kWh</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:9px 0;font-size:13px"><span style="color:var(--n500)">Cargador rápido público DC</span><strong style="font-family:var(--mono)">~0,55 €/kWh</strong></div>
+          </div>
+        </div>
+        <div class="rate-card">
+          <div class="rc-l">Tipos de referencia — BdE Abr 2025</div>
+          <div class="rc-v">6,85%</div>
+          <div class="rc-s">TAE financiación coche nuevo</div>
+          <div class="rc-rows">
+            <div class="rc-row"><span class="rcrl">Euríbor 12m</span><span class="rcrv">2,38%</span></div>
+            <div class="rc-row"><span class="rcrl">Renta fija 5a (ref.)</span><span class="rcrv">3,85%</span></div>
+            <div class="rc-row"><span class="rcrl">MOVES III BEV</span><span class="rcrv">7.000€</span></div>
+            <div class="rc-row"><span class="rcrl">MOVES III PHEV</span><span class="rcrv">4.500€</span></div>
+          </div>
+          <div class="rc-src">Fuente: Banco de España · IDAE · Red Eléctrica de España</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- COMPARE BAR -->
+<div class="cmp-bar" id="cmpBar">
+  <div class="cmpb-slots" id="cmpSlots"></div>
+  <div class="cmpb-acts">
+    <button class="btn-cmpb-clr" onclick="clearCmp()">Limpiar</button>
+    <button class="btn-cmpb" onclick="showCmpResult()">Comparar TCO →</button>
+  </div>
+</div>
+
+<!-- VERSION MODAL -->
+<div class="vm-over" id="vmO" onclick="if(this===event.target)closeVM()">
+  <div class="vm-sheet">
+    <div class="vm-pill"></div>
+    <div class="vm-h">
+      <div class="vm-h-fb" id="vmFB"></div>
+      <div>
+        <div class="vm-h-brand" id="vmBrand"></div>
+        <div class="vm-h-model" id="vmModel"></div>
+        <div class="vm-h-meta" id="vmMeta"></div>
+      </div>
+      <button class="vm-x" onclick="closeVM()">✕</button>
+    </div>
+    <div class="vm-tb" id="vmTB"></div>
+    <div class="vm-body" id="vmBody"></div>
+    <div class="vm-foot">
+      <div class="vm-hint" id="vmHint">Selecciona una versión para calcular el TCO</div>
+      <button class="btn-vm-add" id="vmAddBtn" disabled onclick="addToCmp()">Añadir al comparador</button>
+    </div>
+  </div>
+</div>
+
+<!-- TCO RESULT MODAL -->
+<div class="res-over" id="resO">
+  <div class="res-modal">
+    <div class="res-h">
+      <div class="res-h-left">
+        <div class="res-h-title">Análisis TCO Completo</div>
+        <div class="res-h-formula" id="resFormula">TCO = D + F + E + S + M + N + T_ivtm + T_itv + C — VR</div>
+      </div>
+      <button class="res-close" onclick="closeRes()">✕</button>
+    </div>
+    <div class="res-body" id="resBody"></div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="auth-over" id="authO" onclick="if(this===event.target)closeAuth()">
+  <div class="auth-modal">
+    <div class="auth-top">
+      <div class="auth-logo"><div class="logo-dot"></div>AutoCoste</div>
+      <div class="auth-tagline">Guarda tus estudios y contribuye a los datos de mercado</div>
+      <button class="auth-x" onclick="closeAuth()">✕</button>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" id="at-login" onclick="switchAuth('login')">Iniciar sesión</button>
+      <button class="auth-tab" id="at-reg" onclick="switchAuth('reg')">Crear cuenta</button>
+    </div>
+    <div class="auth-body">
+      <div class="auth-err" id="authErr"></div>
+      <div id="loginF">
+        <div class="af"><label class="al">Email</label><input class="ai" id="lEmail" type="email" placeholder="tu@email.com"></div>
+        <div class="af"><label class="al">Contraseña</label><input class="ai" id="lPass" type="password" placeholder="••••••••"></div>
+        <button class="btn-auth" onclick="doLogin()">Entrar →</button>
+      </div>
+      <div id="regF" style="display:none">
+        <div class="auth-privacy-note">🔒 Tus estudios TCO se guardan de forma anonimizada para contribuir a estudios de mercado del sector automovilístico español. Nunca se venden ni se comparten individualmente. Puedes eliminar tu cuenta en cualquier momento.</div>
+        <div class="a2c">
+          <div class="af"><label class="al">Nombre</label><input class="ai" id="rName" placeholder="Cristian"></div>
+          <div class="af"><label class="al">Apellido</label><input class="ai" id="rLast" placeholder="Bayona"></div>
+        </div>
+        <div class="af"><label class="al">Email</label><input class="ai" id="rEmail" type="email" placeholder="tu@email.com"></div>
+        <div class="af"><label class="al">Contraseña (mín. 8 caracteres)</label><input class="ai" id="rPass" type="password" placeholder="••••••••"></div>
+        <div class="af"><label class="al">Comunidad autónoma</label>
+          <select class="ai" id="rCA">
+            <option value="">— Selecciona —</option>
+            <option>Andalucía</option><option>Aragón</option><option>Asturias</option>
+            <option>Baleares</option><option>Canarias</option><option>Cantabria</option>
+            <option>Castilla-La Mancha</option><option>Castilla y León</option>
+            <option>Cataluña</option><option>Ceuta</option><option>Extremadura</option>
+            <option>Galicia</option><option>La Rioja</option><option>Madrid</option>
+            <option>Melilla</option><option>Murcia</option><option>Navarra</option>
+            <option>País Vasco</option><option selected>Comunidad Valenciana</option>
+          </select>
+        </div>
+        <button class="btn-auth" onclick="doRegister()">Crear cuenta gratuita →</button>
+      </div>
+    </div>
+    <div class="auth-fn">Al registrarte aceptas que tus estudios TCO contribuyan de forma anonimizada a estudios de mercado. Sin datos personales, sin venta, sin spam.</div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// AUTOCOSTE v3 — Motor TCO académico completo
+// Metodología: Arval/ALD + Eurotax + BdE 2025
+// ══════════════════════════════════════════════════════════
+
+// ── Supabase config ──
+const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+const SUPABASE_KEY = 'TU-ANON-PUBLIC-KEY';
+let supa = null;
+try { supa = supabase.createClient(SUPABASE_URL, SUPABASE_KEY); } catch(e) {}
+
+// ── Imagin.studio ──
+const IMAGIN_CUSTOMER = 'img-autocompare';
+const IMAGIN_MAP = {
+  'dacia-sandero':['dacia','sandero'],'dacia-sandero-stepway':['dacia','sandero'],
+  'dacia-duster':['dacia','duster'],'dacia-duster-hybrid':['dacia','duster'],
+  'dacia-jogger':['dacia','jogger'],'dacia-jogger-hybrid':['dacia','jogger'],
+  'dacia-spring':['dacia','spring'],
+  'seat-ibiza':['seat','ibiza'],'seat-leon':['seat','leon'],
+  'seat-leon-sportstourer':['seat','leon'],'seat-leon-phev':['seat','leon'],
+  'seat-arona':['seat','arona'],'seat-ateca':['seat','ateca'],
+  'seat-tarraco':['seat','tarraco'],'seat-tarraco-phev':['seat','tarraco'],
+  'cupra-born':['cupra','born'],'cupra-formentor':['cupra','formentor'],
+  'cupra-formentor-phev':['cupra','formentor'],'cupra-leon':['cupra','leon'],
+  'cupra-leon-phev':['cupra','leon'],'cupra-terramar':['cupra','terramar'],
+  'cupra-terramar-phev':['cupra','terramar'],
+  'volkswagen-polo':['volkswagen','polo'],'volkswagen-golf':['volkswagen','golf'],
+  'volkswagen-golf-gte':['volkswagen','golf'],'volkswagen-golf-r':['volkswagen','golf'],
+  'volkswagen-tcross':['volkswagen','t-cross'],'volkswagen-troc':['volkswagen','t-roc'],
+  'volkswagen-troc-cabrio':['volkswagen','t-roc'],'volkswagen-tiguan':['volkswagen','tiguan'],
+  'volkswagen-tiguan-phev':['volkswagen','tiguan'],'volkswagen-touareg':['volkswagen','touareg'],
+  'volkswagen-passat':['volkswagen','passat'],'volkswagen-passat-phev':['volkswagen','passat'],
+  'volkswagen-id3':['volkswagen','id3'],'volkswagen-id4':['volkswagen','id4'],
+  'volkswagen-id5':['volkswagen','id5'],'volkswagen-id7':['volkswagen','id7'],
+  'volkswagen-id-buzz':['volkswagen','id-buzz'],'volkswagen-arteon':['volkswagen','arteon'],
+  'skoda-fabia':['skoda','fabia'],'skoda-scala':['skoda','scala'],
+  'skoda-octavia':['skoda','octavia'],'skoda-octavia-combi':['skoda','octavia'],
+  'skoda-octavia-phev':['skoda','octavia'],'skoda-superb':['skoda','superb'],
+  'skoda-superb-combi':['skoda','superb'],'skoda-kamiq':['skoda','kamiq'],
+  'skoda-karoq':['skoda','karoq'],'skoda-kodiaq':['skoda','kodiaq'],
+  'skoda-kodiaq-phev':['skoda','kodiaq'],'skoda-enyaq':['skoda','enyaq'],
+  'skoda-enyaq-coupe':['skoda','enyaq'],
+  'opel-corsa':['opel','corsa'],'opel-corsa-electric':['opel','corsa'],
+  'opel-astra':['opel','astra'],'opel-astra-phev':['opel','astra'],
+  'opel-astra-sports-tourer':['opel','astra'],
+  'opel-mokka':['opel','mokka'],'opel-mokka-electric':['opel','mokka'],
+  'opel-grandland':['opel','grandland'],'opel-grandland-phev':['opel','grandland'],
+  'opel-grandland-electric':['opel','grandland'],
+  'peugeot-208':['peugeot','208'],'peugeot-e208':['peugeot','e-208'],
+  'peugeot-308':['peugeot','308'],'peugeot-308-phev':['peugeot','308'],
+  'peugeot-308-sw':['peugeot','308'],'peugeot-408':['peugeot','408'],
+  'peugeot-408-phev':['peugeot','408'],'peugeot-508':['peugeot','508'],
+  'peugeot-2008':['peugeot','2008'],'peugeot-e2008':['peugeot','e-2008'],
+  'peugeot-3008':['peugeot','3008'],'peugeot-3008-electric':['peugeot','e-3008'],
+  'peugeot-5008':['peugeot','5008'],'peugeot-5008-electric':['peugeot','e-5008'],
+  'citroen-c3':['citroen','c3'],'citroen-ec3':['citroen','c3'],
+  'citroen-c3-aircross':['citroen','c3aircross'],'citroen-c4':['citroen','c4'],
+  'citroen-ec4':['citroen','c4'],'citroen-c5aircross':['citroen','c5aircross'],
+  'citroen-c5aircross-phev':['citroen','c5aircross'],'citroen-c5x':['citroen','c5x'],
+  'renault-clio':['renault','clio'],'renault-clio-hybrid':['renault','clio'],
+  'renault-5-ev':['renault','5'],'renault-captur':['renault','captur'],
+  'renault-captur-hybrid':['renault','captur'],'renault-captur-phev':['renault','captur'],
+  'renault-megane-etech':['renault','megane'],'renault-austral':['renault','austral'],
+  'renault-austral-hybrid':['renault','austral'],'renault-scenic-etech':['renault','scenic'],
+  'renault-rafale':['renault','rafale'],'renault-rafale-phev':['renault','rafale'],
+  'renault-espace':['renault','espace'],
+  'toyota-aygo-x':['toyota','aygox'],'toyota-yaris-hev':['toyota','yaris'],
+  'toyota-yaris-cross':['toyota','yariscross'],'toyota-corolla-hev':['toyota','corolla'],
+  'toyota-corolla-touring':['toyota','corolla'],'toyota-chr-hev':['toyota','chr'],
+  'toyota-chr-phev':['toyota','chr'],'toyota-rav4-hev':['toyota','rav4'],
+  'toyota-rav4-phev':['toyota','rav4'],'toyota-bz4x':['toyota','bz4x'],
+  'toyota-prius-phev':['toyota','prius'],'toyota-landcruiser':['toyota','landcruiser'],
+  'toyota-highlander':['toyota','highlander'],
+  'lexus-ux':['lexus','ux'],'lexus-nx':['lexus','nx'],'lexus-nx-phev':['lexus','nx'],
+  'lexus-rx':['lexus','rx'],'lexus-rx-phev':['lexus','rx'],'lexus-rz':['lexus','rz'],
+  'lexus-is':['lexus','is'],'lexus-es':['lexus','es'],'lexus-lc':['lexus','lc'],
+  'kia-picanto':['kia','picanto'],'kia-stonic':['kia','stonic'],
+  'kia-niro-hev':['kia','niro'],'kia-niro-phev':['kia','niro'],'kia-niro-ev':['kia','niro'],
+  'kia-sportage':['kia','sportage'],'kia-sportage-hev':['kia','sportage'],
+  'kia-sportage-phev':['kia','sportage'],'kia-sorento':['kia','sorento'],
+  'kia-sorento-hev':['kia','sorento'],'kia-sorento-phev':['kia','sorento'],
+  'kia-ev3':['kia','ev3'],'kia-ev6':['kia','ev6'],'kia-ev9':['kia','ev9'],
+  'hyundai-i10':['hyundai','i10'],'hyundai-i20':['hyundai','i20'],
+  'hyundai-i30':['hyundai','i30'],'hyundai-i30-wagon':['hyundai','i30'],
+  'hyundai-bayon':['hyundai','bayon'],'hyundai-tucson':['hyundai','tucson'],
+  'hyundai-tucson-hev':['hyundai','tucson'],'hyundai-tucson-phev':['hyundai','tucson'],
+  'hyundai-santa-fe':['hyundai','santafe'],'hyundai-santa-fe-hev':['hyundai','santafe'],
+  'hyundai-ioniq5':['hyundai','ioniq5'],'hyundai-ioniq6':['hyundai','ioniq6'],
+  'hyundai-kona-electric':['hyundai','kona'],'hyundai-kona':['hyundai','kona'],
+  'honda-jazz':['honda','jazz'],'honda-hrv':['honda','hrv'],
+  'honda-zr-v':['honda','zrv'],'honda-crv-hev':['honda','crv'],
+  'honda-crv-phev':['honda','crv'],'honda-enyone1':['honda','eny1'],
+  'nissan-juke':['nissan','juke'],'nissan-juke-hybrid':['nissan','juke'],
+  'nissan-qashqai':['nissan','qashqai'],'nissan-qashqai-mhev':['nissan','qashqai'],
+  'nissan-xtrail':['nissan','xtrail'],'nissan-xtrail-epower':['nissan','xtrail'],
+  'nissan-ariya':['nissan','ariya'],'nissan-leaf':['nissan','leaf'],
+  'mazda-2-hybrid':['mazda','2'],'mazda-3':['mazda','3'],'mazda-3-mhev':['mazda','3'],
+  'mazda-cx30':['mazda','cx-30'],'mazda-cx30-mhev':['mazda','cx-30'],
+  'mazda-cx5':['mazda','cx-5'],'mazda-cx60':['mazda','cx-60'],
+  'mazda-cx80':['mazda','cx-80'],'mazda-mx5':['mazda','mx-5'],'mazda-mx30':['mazda','mx-30'],
+  'suzuki-swift':['suzuki','swift'],'suzuki-swift-hybrid':['suzuki','swift'],
+  'suzuki-ignis':['suzuki','ignis'],'suzuki-vitara':['suzuki','vitara'],
+  'suzuki-vitara-hybrid':['suzuki','vitara'],'suzuki-scross':['suzuki','s-cross'],
+  'suzuki-scross-hybrid':['suzuki','s-cross'],'suzuki-across':['suzuki','across'],
+  'ford-puma':['ford','puma'],'ford-puma-mhev':['ford','puma'],
+  'ford-focus':['ford','focus'],'ford-focus-wagon':['ford','focus'],
+  'ford-kuga':['ford','kuga'],'ford-kuga-phev':['ford','kuga'],
+  'ford-mustang-mache':['ford','mustangie'],'ford-explorer-ev':['ford','explorer'],
+  'ford-bronco':['ford','bronco'],
+  'jeep-avenger':['jeep','avenger'],'jeep-avenger-electric':['jeep','avenger'],
+  'jeep-renegade':['jeep','renegade'],'jeep-renegade-phev':['jeep','renegade'],
+  'jeep-compass':['jeep','compass'],'jeep-compass-phev':['jeep','compass'],
+  'jeep-wrangler':['jeep','wrangler'],'jeep-wrangler-phev':['jeep','wrangler'],
+  'jeep-grand-cherokee':['jeep','grandcherokee'],'jeep-grand-cherokee-phev':['jeep','grandcherokee'],
+  'land-rover-defender':['landrover','defender'],'land-rover-defender-phev':['landrover','defender'],
+  'land-rover-discovery-sport':['landrover','discoverysport'],
+  'land-rover-discovery':['landrover','discovery'],
+  'range-rover-evoque':['landrover','evoque'],'range-rover-evoque-phev':['landrover','evoque'],
+  'range-rover-velar':['landrover','velar'],'range-rover-sport':['landrover','rangeroversport'],
+  'bmw-1series':['bmw','1series'],'bmw-2series':['bmw','2series'],
+  'bmw-2gran-coupe':['bmw','2grancoupe'],'bmw-3series':['bmw','3series'],
+  'bmw-3series-touring':['bmw','3series'],'bmw-330e':['bmw','3series'],
+  'bmw-4series':['bmw','4series'],'bmw-5series':['bmw','5series'],
+  'bmw-5series-touring':['bmw','5series'],'bmw-x1':['bmw','x1'],
+  'bmw-ix1':['bmw','ix1'],'bmw-x1-phev':['bmw','x1'],
+  'bmw-x3':['bmw','x3'],'bmw-ix3':['bmw','ix3'],'bmw-x5':['bmw','x5'],
+  'bmw-x5-phev':['bmw','x5'],'bmw-i4':['bmw','i4'],'bmw-ix':['bmw','ix'],
+  'mercedes-a-class':['mercedes-benz','aclass'],'mercedes-b-class':['mercedes-benz','bclass'],
+  'mercedes-c-class':['mercedes-benz','cclass'],'mercedes-c-phev':['mercedes-benz','cclass'],
+  'mercedes-e-class':['mercedes-benz','eclass'],'mercedes-gla':['mercedes-benz','gla'],
+  'mercedes-glb':['mercedes-benz','glb'],'mercedes-glc':['mercedes-benz','glc'],
+  'mercedes-glc-phev':['mercedes-benz','glc'],'mercedes-gle':['mercedes-benz','gle'],
+  'mercedes-gle-phev':['mercedes-benz','gle'],'mercedes-eqa':['mercedes-benz','eqa'],
+  'mercedes-eqb':['mercedes-benz','eqb'],'mercedes-eqe':['mercedes-benz','eqe'],
+  'mercedes-eqe-suv':['mercedes-benz','eqesuv'],
+  'audi-a1':['audi','a1'],'audi-a3':['audi','a3'],'audi-a3-phev':['audi','a3'],
+  'audi-a4':['audi','a4'],'audi-a5':['audi','a5'],'audi-a6':['audi','a6'],
+  'audi-q2':['audi','q2'],'audi-q3':['audi','q3'],'audi-q3-phev':['audi','q3'],
+  'audi-q5':['audi','q5'],'audi-q5-phev':['audi','q5'],
+  'audi-q7':['audi','q7'],'audi-q8':['audi','q8'],
+  'audi-q4-etron':['audi','q4'],'audi-q6-etron':['audi','q6'],'audi-etron-gt':['audi','etrongt'],
+  'volvo-ex30':['volvo','ex30'],'volvo-ex40':['volvo','ex40'],'volvo-ec40':['volvo','ec40'],
+  'volvo-xc40':['volvo','xc40'],'volvo-xc40-phev':['volvo','xc40'],
+  'volvo-xc60':['volvo','xc60'],'volvo-xc60-phev':['volvo','xc60'],
+  'volvo-xc90':['volvo','xc90'],'volvo-xc90-phev':['volvo','xc90'],
+  'porsche-cayenne':['porsche','cayenne'],'porsche-cayenne-phev':['porsche','cayenne'],
+  'porsche-macan':['porsche','macan'],'porsche-macan-electric':['porsche','macan'],
+  'porsche-taycan':['porsche','taycan'],'porsche-taycan-sport-turismo':['porsche','taycan'],
+  'porsche-panamera':['porsche','panamera'],
+  'mini-cooper':['mini','cooper'],'mini-cooper-electric':['mini','cooperse'],
+  'mini-cooper-countryman':['mini','countryman'],'mini-countryman-phev':['mini','countryman'],
+  'mini-countryman-electric':['mini','countryman'],'mini-aceman':['mini','aceman'],
+  'ds-ds3':['ds','ds3'],'ds-ds3-electric':['ds','ds3'],'ds-ds4':['ds','ds4'],
+  'ds-ds4-phev':['ds','ds4'],'ds-ds7':['ds','ds7'],'ds-ds7-phev':['ds','ds7'],
+  'tesla-model3':['tesla','model3'],'tesla-modely':['tesla','modely'],
+  'tesla-models':['tesla','models'],'tesla-modelx':['tesla','modelx'],
+  'mg-mg3':['mg','mg3'],'mg-mg3-hybrid':['mg','mg3'],'mg-mg4':['mg','mg4'],
+  'mg-zs':['mg','zs'],'mg-zs-ev':['mg','zs'],'mg-hs':['mg','hs'],
+  'mg-hs-phev':['mg','hs'],'mg-marvel-r':['mg','marvelr'],
+  'byd-atto3':['byd','atto3'],'byd-seal':['byd','seal'],
+  'byd-dolphin':['byd','dolphin'],'byd-tang':['byd','tang'],'byd-seal-u':['byd','sealu'],
+  'fiat-panda':['fiat','panda'],'fiat-panda-hybrid':['fiat','panda'],
+  'fiat-500':['fiat','500'],'fiat-500-electric':['fiat','500'],
+  'fiat-500x':['fiat','500x'],'fiat-tipo':['fiat','tipo'],'fiat-600e':['fiat','600'],
+  'alfa-romeo-junior':['alfaromeo','junior'],'alfa-romeo-junior-electric':['alfaromeo','junior'],
+  'alfa-romeo-tonale':['alfaromeo','tonale'],'alfa-romeo-tonale-phev':['alfaromeo','tonale'],
+  'alfa-romeo-stelvio':['alfaromeo','stelvio'],'alfa-romeo-giulia':['alfaromeo','giulia'],
+  'xpeng-g6':['xpeng','g6'],'xpeng-g9':['xpeng','g9'],
+  'nio-et5':['nio','et5'],'nio-el6':['nio','el6'],
+  'aiways-u5':['aiways','u5'],'aiways-u6':['aiways','u6'],
+  'omoda-5':['omoda','5'],'omoda-5-ev':['omoda','5'],'jaecoo-7':['jaecoo','7'],
+  'jaguar-fpace':['jaguar','fpace'],'jaguar-fpace-phev':['jaguar','fpace'],
+  'jaguar-epace':['jaguar','epace'],'jaguar-ipace':['jaguar','ipace'],
+  'mitsubishi-asx':['mitsubishi','asx'],'mitsubishi-asx-hybrid':['mitsubishi','asx'],
+  'mitsubishi-eclipse-cross':['mitsubishi','eclipsecross'],
+  'mitsubishi-eclipse-cross-phev':['mitsubishi','eclipsecross'],
+  'mitsubishi-outlander-phev':['mitsubishi','outlander'],
+  'subaru-forester':['subaru','forester'],'subaru-forester-ehybrid':['subaru','forester'],
+  'subaru-outback':['subaru','outback'],'subaru-crosstrek':['subaru','xv'],
+  'subaru-solterra':['subaru','solterra'],'lynkco-01':['lynkco','01'],
+  'maserati-grecale':['maserati','grecale'],'maserati-grecale-folgore':['maserati','grecale'],
+  'maserati-levante':['maserati','levante'],'maserati-ghibli':['maserati','ghibli'],
+  'smart-hash1':['smart','hash1'],'smart-hash3':['smart','hash3'],
+};
+
+function imgSrc(v) {
+  const m = IMAGIN_MAP[v.id];
+  const mk = m ? m[0] : (v.imagin_make||v.brand.toLowerCase().replace(/\s/g,''));
+  const md = m ? m[1] : (v.imagin_model||v.model.toLowerCase().replace(/[\s.']/g,'').replace(/-+/g,'-'));
+  return `https://cdn.imagin.studio/getimage?customer=${IMAGIN_CUSTOMER}&make=${mk}&modelFamily=${md}&angle=23&zoomType=cutout&width=800&modelYear=2025`;
+}
+
+// ══════════════════════════════════════════════════
+// FÓRMULA TCO ACADÉMICA COMPLETA
+// TCO = D + F + E + S + M + N + T_ivtm + T_itv + C - VR - A
+// ══════════════════════════════════════════════════
+
+const TCO_PARAMS = {
+  years: 5, kmYear: 15000, fuel: 'phev',
+  // Precios energía Abr 2025
+  pGas: 1.62, pDie: 1.51, pKwhV: 0.09, pKwhP: 0.17, pKwhDC: 0.55,
+  chargeProfile: 0.17,
+  tae: 6.85, rentAlt: 3.85,
+  seguro: 950, ivtm: 88, itvCoste: 55,
+  // Perfil financiero del usuario
+  salario: 0,          // bruto anual €
+  capitalDisponible: 0, // ahorro disponible para entrada €
+  financia: true,      // true = financia | false = contado
+  entradaPct: 20,      // % entrada si financia (override por capitalDisponible)
+  plazo: 60,           // meses del préstamo
+  gastosBase: 0,       // gastos fijos mensuales no relacionados con coche
+};
+
+/**
+ * calcTCO — Cálculo TCO completo para una versión
+ * @param {Object} ver  — versión del vehículo con todos los parámetros
+ * @param {Object} cfg  — configuración del usuario (años, km, etc.)
+ * @returns {Object}    — desglose completo y métricas finales
+ */
+function calcTCO(ver, cfg = {}) {
+  const p = { ...TCO_PARAMS, ...cfg };
+  const years = p.years, kmYear = p.kmYear, kmTotal = kmYear * years;
+  const fuel = ver.type || ver.fuel_type;
+  const pvpNeto = Math.max(0, ver.price - (ver.movesAmt || 0));
+
+  // ── 1. DEPRECIACIÓN (D) ──────────────────────
+  // Curva de depreciación diferenciada por tecnología
+  const depRates = {
+    electrico: [0.20, 0.15, 0.12, 0.10, 0.09, 0.08, 0.07, 0.07, 0.06, 0.06],
+    hibrido:   [0.16, 0.12, 0.10, 0.09, 0.08, 0.07, 0.07, 0.06, 0.06, 0.05],
+    phev:      [0.18, 0.13, 0.11, 0.10, 0.09, 0.08, 0.07, 0.07, 0.06, 0.06],
+    gasolina:  [0.18, 0.13, 0.11, 0.10, 0.09, 0.08, 0.08, 0.07, 0.06, 0.06],
+    diesel:    [0.17, 0.12, 0.10, 0.09, 0.08, 0.07, 0.07, 0.06, 0.06, 0.05],
+  };
+  const rates = depRates[fuel] || depRates.gasolina;
+  let vrAcum = pvpNeto;
+  const depYearly = [];
+  for (let i = 0; i < years && i < rates.length; i++) {
+    const d = vrAcum * rates[i];
+    depYearly.push({ year: i+1, dep: d, vr: vrAcum - d });
+    vrAcum -= d;
+  }
+  const VR = Math.round(vrAcum); // Valor residual final
+  const D = Math.max(0, pvpNeto - VR); // Depreciación neta
+
+  // ── 2. FINANCIACIÓN / COSTE DE OPORTUNIDAD (F) ──
+  // Si hay capital disponible, se usa como entrada real (en lugar del % genérico)
+  let F = 0, entradaReal = 0, capitalFinanciado = 0, cuotaMes = 0;
+  if (p.financia) {
+    // Entrada: máximo entre capital disponible y entrada mínima del %
+    const entradaPctAmt = pvpNeto * ((p.entradaPct || 20) / 100);
+    entradaReal = p.capitalDisponible > 0
+      ? Math.min(p.capitalDisponible, pvpNeto * 0.80) // máx 80% de entrada
+      : entradaPctAmt;
+    capitalFinanciado = Math.max(0, pvpNeto - entradaReal);
+    const taeM = p.tae / 100 / 12;
+    const n = p.plazo || years * 12;
+    if (taeM > 0 && capitalFinanciado > 0) {
+      cuotaMes = capitalFinanciado * taeM / (1 - Math.pow(1 + taeM, -n));
+      F = Math.max(0, cuotaMes * Math.min(n, years * 12) - capitalFinanciado);
+    }
+    // Coste de oportunidad del capital usado como entrada
+    // (ese dinero podría haberse invertido)
+    const cof_entrada = entradaReal * (p.rentAlt / 100) * years;
+    F += Math.round(cof_entrada);
+  } else {
+    // Compra al contado: coste de oportunidad total del capital inmovilizado
+    entradaReal = pvpNeto;
+    capitalFinanciado = 0;
+    cuotaMes = 0;
+    F = Math.round(pvpNeto * (p.rentAlt / 100) * years);
+  }
+
+  // ── 3. ENERGÍA (E) ──────────────────────────
+  let E = 0;
+  const cons_l = ver.cons || ver.consumption_l || 6.5;
+  const cons_kwh = ver.consKwh || ver.consumption_kwh || 17.0;
+  const cons_th = ver.consTh || ver.consumption_thermal || 7.5;
+  const phevElecPct = p.phevElecPct !== undefined ? p.phevElecPct / 100 : 0.65;
+
+  if (fuel === 'gasolina') {
+    E = (kmYear / 100) * cons_l * p.pGas * years;
+  } else if (fuel === 'diesel') {
+    E = (kmYear / 100) * cons_l * p.pDie * years;
+  } else if (fuel === 'hibrido') {
+    // HEV: factor de eficiencia por ruta
+    const routeEff = { ciudad: 0.83, mixto: 0.90, carretera: 0.98 }[p.route || 'mixto'] || 0.90;
+    E = (kmYear / 100) * cons_l * routeEff * p.pGas * years;
+  } else if (fuel === 'electrico') {
+    const pKwh = p.chargeProfile || p.pKwhP;
+    E = (kmYear / 100) * cons_kwh * pKwh * years;
+  } else if (fuel === 'phev') {
+    const kmElec = kmYear * phevElecPct;
+    const kmTerm = kmYear * (1 - phevElecPct);
+    const costE = (kmElec / 100) * cons_kwh * (p.chargeProfile || p.pKwhP);
+    const costT = (kmTerm / 100) * cons_th * p.pGas;
+    E = (costE + costT) * years;
+  }
+
+  // ── 4. SEGURO (S) ────────────────────────────
+  // Prima base + escalado del 3% anual por envejecimiento del vehículo
+  let S = 0;
+  const seguroBase = ver.seguro || p.seguro;
+  for (let y = 0; y < years; y++) {
+    S += seguroBase * Math.pow(1.03, y); // escalado anual
+  }
+
+  // ── 5. MANTENIMIENTO + REPARACIONES (M) ──────
+  const mantRef = {
+    electrico: { muy_alta: 200, alta: 280, media: 340, baja: 420 },
+    hibrido:   { muy_alta: 360, alta: 440, media: 540, baja: 660 },
+    phev:      { muy_alta: 480, alta: 580, media: 700, baja: 860 },
+    gasolina:  { muy_alta: 420, alta: 520, media: 640, baja: 800 },
+    diesel:    { muy_alta: 580, alta: 720, media: 900, baja: 1100 },
+  };
+  const repRef = {
+    electrico: { muy_alta: 90, alta: 150, media: 220, baja: 310 },
+    hibrido:   { muy_alta: 130, alta: 210, media: 300, baja: 420 },
+    phev:      { muy_alta: 200, alta: 290, media: 400, baja: 540 },
+    gasolina:  { muy_alta: 170, alta: 250, media: 360, baja: 540 },
+    diesel:    { muy_alta: 220, alta: 330, media: 470, baja: 680 },
+  };
+  const fiab = ver.fiabilidad || p.fiab || 'media';
+  const fuelRef = fuel || 'gasolina';
+  const mantAnual = ver.mant || ver.maint_year || (mantRef[fuelRef]||mantRef.gasolina)[fiab] || 520;
+  const repAnual = ver.repC || ver.repair_cost || (repRef[fuelRef]||repRef.gasolina)[fiab] || 280;
+  const M = (mantAnual + repAnual) * years;
+
+  // ── 6. NEUMÁTICOS (N) ─────────────────────────
+  // N = ⌈km_total / vida_útil⌉ × precio_juego
+  const tyrC = ver.tyrC || ver.tyre_cost || 520;
+  const tyrKm = ver.tyrKm || ver.tyre_km || (['electrico','phev'].includes(fuel) ? 35000 : 42000);
+  const tyrCambios = Math.ceil(kmTotal / tyrKm);
+  const N = tyrCambios * tyrC;
+
+  // ── 7. IVTM (T_ivtm) ──────────────────────────
+  const ivtmBase = ver.ivtm || p.ivtm;
+  const ivtmReal = fuel === 'electrico' ? Math.round(ivtmBase * 0.25) : ivtmBase;
+  const T_ivtm = ivtmReal * years;
+
+  // ── 8. ITV (T_itv) ───────────────────────────
+  // Exento 0-3a · cada 2a de 4-9a · anual ≥ 10a
+  let T_itv = 0;
+  const itvC = ver.itv || ver.itv_year || p.itvCoste;
+  for (let y = 1; y <= years; y++) {
+    if (y <= 3) continue;
+    if (y < 10) { if ((y - 3) % 2 === 0) T_itv += itvC; }
+    else T_itv += itvC;
+  }
+
+  // ── 9. COSTES CONTEXTUALES (C) ────────────────
+  const parking = p.parking || 0;
+  const wallbox = p.wallbox || 0;
+  const zbe = p.zbe || 0;
+  const C = parking * 12 * years + wallbox + zbe * years;
+
+  // ── AHORRO FISCAL (bf) ────────────────────────
+  const bf = p.beneficioFiscal || 0;
+
+  // ── TCO TOTAL ─────────────────────────────────
+  const TCO = Math.round(D + F + E + S + M + N + T_ivtm + T_itv + C - bf);
+  const monthly = Math.round(TCO / (years * 12));
+  const perKm = TCO > 0 && kmTotal > 0 ? (TCO / kmTotal).toFixed(3) : 0;
+  const annual = Math.round(TCO / years);
+
+  return {
+    TCO, monthly, perKm, annual,
+    VR, pvpNeto, kmTotal, years, fuel,
+    entradaReal: Math.round(entradaReal),
+    capitalFinanciado: Math.round(capitalFinanciado),
+    cuotaMes: Math.round(cuotaMes),
+    breakdown: {
+      D: Math.round(D),
+      F: Math.round(F),
+      E: Math.round(E),
+      S: Math.round(S),
+      M: Math.round(M),
+      N, T_ivtm, T_itv,
+      C: Math.round(C),
+      bf: Math.round(bf),
+    },
+    depYearly, mantAnual, repAnual,
+    tyrCambios, ivtmReal, itvC,
+  };
+}
+
+// IRPF 2024 — tramos reales
+function calcNeto(bruto) {
+  if (!bruto || bruto < 12000) return Math.round(bruto / 12) || 900;
+  const ss = bruto * 0.0635;
+  const redR = bruto <= 14450 ? 5565 : bruto <= 17739 ? 5565 - 1.5 * (bruto - 14450) : 0;
+  const base = Math.max(0, bruto - ss - redR - 5550);
+  const tramos = [[0,12450,.19],[12450,20200,.24],[20200,35200,.30],[35200,60000,.37],[60000,Infinity,.45]];
+  let tax = 0;
+  for (const [a, b, r] of tramos) {
+    if (base <= a) break;
+    tax += (Math.min(base, b) - a) * r;
+  }
+  return Math.round((bruto - ss - tax) / 12);
+}
+
+// ══════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════
+let VEHS = [], VER_CACHE = {}, cmpList = [], vmVeh = null, vmSelVer = null;
+let curFuel = 'all', curSearch = '', curPage = 0, totalVehs = 0, hasMore = false;
+let user = null;
+let pieChart = null, barChart = null;
+let tcoParams = { ...TCO_PARAMS };
+
+// ══════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════
+const fmt = n => new Intl.NumberFormat('es-ES', { maximumFractionDigits: 0 }).format(Math.round(n));
+const fmtE = n => fmt(n) + '€';
+const fmtK = n => fmt(n) + 'km';
+const rcColor = r => r >= 88 ? '#05603A' : r >= 78 ? '#D97706' : '#991B1B';
+const FUEL_EMOJI = { gasolina: '⛽', diesel: '🛢', hibrido: '🔋', phev: '🔌', electrico: '⚡' };
+const FUEL_LABEL = { gasolina: 'Gasolina', diesel: 'Diésel', hibrido: 'Híbrido HEV', phev: 'Plug-in Hybrid', electrico: 'Eléctrico' };
+const BODY_EMOJI = { hatch: '🚗', sedan: '🚘', suv: '🚙', familiar: '🚌', coupe: '🏎' };
+const BG_CLS = { gasolina: 'vi-bg-gas', diesel: 'vi-bg-die', hibrido: 'vi-bg-hev', phev: 'vi-bg-phev', electrico: 'vi-bg-bev' };
+const TYPE_CLS = { gasolina: 'bt-gas', diesel: 'bt-die', hibrido: 'bt-hev', phev: 'bt-phev', electrico: 'bt-bev' };
+const VER_CLS  = { gasolina: 'vtp-gas', diesel: 'vtp-die', hibrido: 'vtp-hev', phev: 'vtp-phev', electrico: 'vtp-bev' };
+const BKCOLORS = ['#0F3460','#059669','#D97706','#DC2626','#7C3AED','#0891B2','#92400E','#6B7280','#F59E0B'];
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast on' + (type ? ' t' + type : '');
+  setTimeout(() => { t.className = 'toast' }, 3200);
+}
+
+// ══════════════════════════════════════════════════
+// NAV / ROUTING
+// ══════════════════════════════════════════════════
+function showApp(filter) {
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  if (filter) { curFuel = filter; updateFuelPills(); }
+  showSec('catalog');
+  if (!VEHS.length) loadVehicles();
+}
+function backToLanding() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('landing').style.display = 'block';
+  window.scrollTo(0, 0);
+}
+function launchFilter(f) { curFuel = f; showApp(f); }
+function showSec(id) {
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('on'));
+  document.querySelectorAll('.a-tab').forEach(t => t.classList.remove('on'));
+  document.getElementById('sec-' + id)?.classList.add('on');
+  document.getElementById('tab-' + id)?.classList.add('on');
+  if (id === 'compare') renderCmpTable();
+  if (id === 'studies') renderStudies();
+}
+function scrollTo(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }
+
+// Sticky nav
+window.addEventListener('scroll', () => {
+  const nav = document.getElementById('landNav');
+  if (nav) nav.classList.toggle('scrolled', window.scrollY > 80);
+}, { passive: true });
+
+// Avatar dropdown
+function toggleAvDrop() {
+  document.getElementById('avDrop').classList.toggle('on');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.av-wrap')) document.getElementById('avDrop')?.classList.remove('on');
+});
+
+// ══════════════════════════════════════════════════
+// VEHICLE LOADING — Supabase + local fallback
+// ══════════════════════════════════════════════════
+
+// Compact embedded vehicle data (fallback when Supabase not configured)
+const VEHS_FALLBACK = [
+  {id:'toyota-yaris-hev',brand:'Toyota',model:'Yaris HEV',seg:'Utilitario',body:'hatch',type:'hibrido',price:24400,maxP:41500,rel:91,award:'🏆 Premio TCO 2025',moves:false,movesAmt:0,versions:[
+    {id:'tyh-act',finish:'Active',motor:'1.5 HEV 116cv CVT',type:'hibrido',price:24400,cv:116,co2:87,cons:3.8,consKwh:null,mant:420,ins_coef:.038,tyrC:370,tyrKm:45000,ivtm:55,itv:22,dep:[.16,.12,.10,.09,.08],repC:125,moves:false,movesAmt:0,extras:['Safety Sense 3.0','Pantalla 7"','ECO mode']},
+    {id:'tyh-com',finish:'Comfort',motor:'1.5 HEV 116cv CVT',type:'hibrido',price:25400,cv:116,co2:87,cons:3.8,consKwh:null,mant:430,ins_coef:.038,tyrC:380,tyrKm:45000,ivtm:55,itv:22,dep:[.16,.12,.10,.09,.08],repC:130,moves:false,movesAmt:0,extras:['Pantalla 9"','ACC','BSM']},
+    {id:'tyh-sty',finish:'Style',motor:'1.5 HEV 116cv CVT',type:'hibrido',price:27900,cv:116,co2:87,cons:3.8,consKwh:null,mant:440,ins_coef:.038,tyrC:380,tyrKm:45000,ivtm:55,itv:22,dep:[.16,.12,.10,.09,.08],repC:132,moves:false,movesAmt:0,extras:['Cámara 360°','HUD','JBL']},
+    {id:'tyh-gr',finish:'GR Sport',motor:'1.6 GR HEV 261cv AWD',type:'hibrido',price:41500,cv:261,co2:147,cons:6.4,consKwh:null,mant:680,ins_coef:.042,tyrC:560,tyrKm:35000,ivtm:160,itv:22,dep:[.17,.13,.11,.10,.09],repC:230,moves:false,movesAmt:0,extras:['GR-FOUR 4WD','Torsen diff.','Nürburgring tuned']},
+  ]},
+  {id:'kia-ev3',brand:'Kia',model:'EV3',seg:'SUV eléctrico',body:'suv',type:'electrico',price:34900,maxP:42900,rel:88,award:'⭐ Mejor VE 2025',moves:true,movesAmt:7000,versions:[
+    {id:'kev3-std',finish:'Standard',motor:'58.3kWh 204cv',type:'electrico',price:34900,cv:204,co2:0,cons:null,consKwh:14.8,mant:280,ins_coef:.038,tyrC:480,tyrKm:35000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:170,moves:true,movesAmt:7000,extras:['390km WLTP','V2L','7 años garantía']},
+    {id:'kev3-gt',finish:'GT-Line',motor:'58.3kWh 204cv',type:'electrico',price:39900,cv:204,co2:0,cons:null,consKwh:14.9,mant:290,ins_coef:.039,tyrC:500,tyrKm:35000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:180,moves:true,movesAmt:7000,extras:['GT-Line ext.','Llantas 19"','Harman Kardon']},
+    {id:'kev3-lr',finish:'Long Range',motor:'81.4kWh 204cv',type:'electrico',price:42900,cv:204,co2:0,cons:null,consKwh:15.2,mant:280,ins_coef:.038,tyrC:480,tyrKm:35000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:175,moves:true,movesAmt:7000,extras:['560km WLTP','150kW DC']},
+  ]},
+  {id:'dacia-sandero',brand:'Dacia',model:'Sandero',seg:'Utilitario',body:'hatch',type:'gasolina',price:10990,maxP:16900,rel:79,award:null,moves:false,movesAmt:0,versions:[
+    {id:'ds-ess',finish:'Essential',motor:'SCe 65cv MAN',type:'gasolina',price:10990,cv:65,co2:135,cons:5.9,consKwh:null,mant:380,ins_coef:.035,tyrC:300,tyrKm:40000,ivtm:45,itv:22,dep:[.19,.14,.12,.10,.09],repC:120,moves:false,movesAmt:0,extras:['AC manual','Radio DAB']},
+    {id:'ds-exp',finish:'Expression',motor:'TCe 90cv MAN',type:'gasolina',price:14200,cv:90,co2:128,cons:5.6,consKwh:null,mant:420,ins_coef:.036,tyrC:320,tyrKm:40000,ivtm:55,itv:22,dep:[.18,.13,.12,.10,.09],repC:130,moves:false,movesAmt:0,extras:['Pantalla 8"','Cámara','Carplay']},
+    {id:'ds-jou',finish:'Journey',motor:'TCe 90cv MAN',type:'gasolina',price:16200,cv:90,co2:128,cons:5.6,consKwh:null,mant:420,ins_coef:.036,tyrC:320,tyrKm:40000,ivtm:55,itv:22,dep:[.18,.13,.12,.10,.09],repC:130,moves:false,movesAmt:0,extras:['Nav TomTom','LED','Parking sensors']},
+  ]},
+  {id:'toyota-rav4-phev',brand:'Toyota',model:'RAV4 PHEV',seg:'SUV familiar',body:'suv',type:'phev',price:48900,maxP:57900,rel:90,award:'🌱 Mejor PHEV 2025',moves:true,movesAmt:4500,versions:[
+    {id:'r4p-act',finish:'Active PHEV',motor:'2.5 PHEV 306cv AWD',type:'phev',price:48900,cv:306,co2:28,cons:null,consKwh:17.5,consTh:7.5,mant:500,ins_coef:.037,tyrC:600,tyrKm:40000,ivtm:55,itv:22,dep:[.18,.13,.11,.10,.09],repC:195,moves:true,movesAmt:4500,extras:['75km WLTP','6.6kW AC','AWD permanente']},
+    {id:'r4p-adv',finish:'Advance PHEV',motor:'2.5 PHEV 306cv AWD',type:'phev',price:52900,cv:306,co2:28,cons:null,consKwh:17.5,consTh:7.5,mant:520,ins_coef:.037,tyrC:620,tyrKm:40000,ivtm:55,itv:22,dep:[.18,.13,.11,.10,.09],repC:200,moves:true,movesAmt:4500,extras:['Panel solar','JBL 9sp','HUD']},
+  ]},
+  {id:'volkswagen-id4',brand:'Volkswagen',model:'ID.4',seg:'SUV mediano EV',body:'suv',type:'electrico',price:42900,maxP:58900,rel:81,award:null,moves:true,movesAmt:7000,versions:[
+    {id:'id4-pro',finish:'Pro RWD',motor:'77kWh 204cv RWD',type:'electrico',price:42900,cv:204,co2:0,cons:null,consKwh:16.4,mant:280,ins_coef:.039,tyrC:480,tyrKm:35000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:200,moves:true,movesAmt:7000,extras:['520km WLTP','135kW DC','OTA']},
+    {id:'id4-gtx',finish:'GTX AWD',motor:'77kWh 299cv AWD',type:'electrico',price:52900,cv:299,co2:0,cons:null,consKwh:17.8,mant:300,ins_coef:.041,tyrC:520,tyrKm:30000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:220,moves:true,movesAmt:7000,extras:['AWD','0-100 6.2s','Pack GTX']},
+  ]},
+  {id:'tesla-model3',brand:'Tesla',model:'Model 3',seg:'Berlina EV premium',body:'sedan',type:'electrico',price:44990,maxP:64990,rel:86,award:null,moves:true,movesAmt:7000,versions:[
+    {id:'tm3-rwd',finish:'Long Range RWD',motor:'283cv RWD',type:'electrico',price:44990,cv:283,co2:0,cons:null,consKwh:14.2,mant:260,ins_coef:.038,tyrC:560,tyrKm:30000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:220,moves:true,movesAmt:7000,extras:['629km WLTP','Supercharger V3','Autopilot']},
+    {id:'tm3-awd',finish:'Long Range AWD',motor:'358cv Dual Motor',type:'electrico',price:54990,cv:358,co2:0,cons:null,consKwh:14.7,mant:280,ins_coef:.040,tyrC:580,tyrKm:28000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:230,moves:true,movesAmt:7000,extras:['AWD','0-100 4.4s']},
+    {id:'tm3-perf',finish:'Performance',motor:'460cv AWD Ludicrous',type:'electrico',price:64990,cv:460,co2:0,cons:null,consKwh:15.4,mant:310,ins_coef:.043,tyrC:720,tyrKm:25000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:265,moves:true,movesAmt:7000,extras:['0-100 2.9s','Brembo']},
+  ]},
+  {id:'bmw-x3',brand:'BMW',model:'X3',seg:'SUV premium mediano',body:'suv',type:'gasolina',price:59900,maxP:82900,rel:83,award:null,moves:false,movesAmt:0,versions:[
+    {id:'x3-20i',finish:'xDrive20i',motor:'2.0i 208cv AT8',type:'gasolina',price:59900,cv:208,co2:162,cons:7.1,consKwh:null,mant:1060,ins_coef:.039,tyrC:600,tyrKm:36000,ivtm:132,itv:22,dep:[.17,.13,.11,.10,.09],repC:350,moves:false,movesAmt:0,extras:['xDrive','Pantalla 12.3"','iDrive 8']},
+    {id:'x3-20d',finish:'xDrive20d',motor:'2.0d 190cv AT8',type:'diesel',price:63900,cv:190,co2:148,cons:6.5,consKwh:null,mant:1160,ins_coef:.039,tyrC:620,tyrKm:46000,ivtm:115,itv:22,dep:[.17,.13,.11,.10,.09],repC:390,moves:false,movesAmt:0,extras:['xDrive','TDI','iDrive 8']},
+    {id:'x3-30e',finish:'xDrive30e PHEV',motor:'2.0i PHEV 292cv',type:'phev',price:70900,cv:292,co2:44,cons:null,consKwh:17.5,consTh:8.5,mant:900,ins_coef:.039,tyrC:620,tyrKm:38000,ivtm:55,itv:22,dep:[.18,.13,.11,.10,.09],repC:330,moves:true,movesAmt:4500,extras:['PHEV','50km WLTP','xDrive']},
+  ]},
+  {id:'hyundai-ioniq5',brand:'Hyundai',model:'Ioniq 5',seg:'SUV EV E-GMP',body:'suv',type:'electrico',price:46900,maxP:58900,rel:87,award:null,moves:true,movesAmt:7000,versions:[
+    {id:'hiq5-rwd',finish:'58kWh RWD',motor:'58kWh 170cv',type:'electrico',price:46900,cv:170,co2:0,cons:null,consKwh:16.8,mant:280,ins_coef:.038,tyrC:500,tyrKm:35000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:200,moves:true,movesAmt:7000,extras:['384km WLTP','V2L','800V']},
+    {id:'hiq5-77rwd',finish:'77kWh RWD',motor:'77.4kWh 228cv',type:'electrico',price:50900,cv:228,co2:0,cons:null,consKwh:17.2,mant:300,ins_coef:.039,tyrC:520,tyrKm:33000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:210,moves:true,movesAmt:7000,extras:['507km WLTP','220kW DC']},
+    {id:'hiq5-awd',finish:'77kWh AWD',motor:'77.4kWh 325cv AWD',type:'electrico',price:56900,cv:325,co2:0,cons:null,consKwh:19.0,mant:320,ins_coef:.040,tyrC:540,tyrKm:30000,ivtm:25,itv:22,dep:[.20,.15,.12,.10,.09],repC:230,moves:true,movesAmt:7000,extras:['AWD','454km','0-100 5.1s']},
+  ]},
+];
+
+async function loadVehicles(filter = curFuel, page = 0, append = false) {
+  if (!append) showSkeleton();
+  if (supa && SUPABASE_URL !== 'https://TU-PROYECTO.supabase.co') {
+    try {
+      let q = supa.from('v_catalog').select('*', { count: 'exact' })
+        .eq('active', true).order('fuel_type').order('price_from')
+        .range(page * 12, (page + 1) * 12 - 1);
+      if (filter && filter !== 'all') q = q.eq('fuel_type', filter);
+      const { data, count, error } = await q;
+      if (!error && data) {
+        totalVehs = count || 0;
+        hasMore = (page + 1) * 12 < totalVehs;
+        const adapted = data.map(adaptSupa);
+        if (append) VEHS = [...VEHS, ...adapted];
+        else VEHS = adapted;
+        renderGrid();
+        return;
+      }
+    } catch(e) {}
+  }
+  // Fallback
+  let vehs = VEHS_FALLBACK;
+  if (filter && filter !== 'all') vehs = vehs.filter(v => v.type === filter);
+  if (curSearch) {
+    const q = curSearch.toLowerCase();
+    vehs = vehs.filter(v => v.brand.toLowerCase().includes(q) || v.model.toLowerCase().includes(q));
+  }
+  VEHS = vehs;
+  totalVehs = vehs.length;
+  hasMore = false;
+  renderGrid();
+}
+
+function adaptSupa(d) {
+  return {
+    id: d.id, brand: d.brand, model: d.model,
+    seg: d.segment, body: d.body || 'suv',
+    type: d.fuel_type, price: d.min_price || d.price_from,
+    maxP: d.max_price || d.price_to,
+    rel: d.reliability || 80, award: d.award,
+    moves: d.moves_eligible, movesAmt: d.moves_amount || 0,
+    imagin_make: d.imagin_make, imagin_model: d.imagin_model,
+    ver_count: d.version_count || 1,
+    versions: [{
+      id: d.base_version_id || d.id + '-base',
+      finish: d.base_finish || 'Base',
+      motor: d.base_motor || '',
+      type: d.fuel_type, price: d.min_price || d.price_from,
+      cv: d.base_cv || 100, co2: d.base_co2 || 0,
+      cons: d.base_cons_l, consKwh: d.base_cons_kwh,
+      mant: d.base_maint || 500, ins_coef: d.base_ins || 0.04,
+      tyrC: d.base_tyre_cost || 420, tyrKm: d.base_tyre_km || 40000,
+      ivtm: d.base_ivtm || 80, itv: d.base_itv || 22,
+      dep: [d.dep_y1||.18, d.dep_y2||.13, d.dep_y3||.11, d.dep_y4||.10, d.dep_y5||.09],
+      repC: d.base_repair || 220, moves: d.moves_eligible, movesAmt: d.moves_amount || 0,
+    }]
+  };
+}
+
+async function loadVersions(vehId) {
+  if (VER_CACHE[vehId]) return VER_CACHE[vehId];
+  if (supa && SUPABASE_URL !== 'https://TU-PROYECTO.supabase.co') {
+    try {
+      const { data } = await supa.from('vehicle_versions')
+        .select('*').eq('vehicle_id', vehId).order('sort_order');
+      if (data && data.length) {
+        VER_CACHE[vehId] = data.map(r => ({
+          id: r.id, finish: r.finish_name, motor: r.motor_desc,
+          type: r.fuel_type, price: r.price, cv: r.cv, co2: r.co2||0,
+          cons: r.consumption_l, consKwh: r.consumption_kwh, consTh: r.consumption_thermal,
+          mant: r.maint_year, ins_coef: r.insurance_coef, tyrC: r.tyre_cost, tyrKm: r.tyre_km,
+          ivtm: r.ivtm, itv: r.itv_year, dep: [r.dep_y1,r.dep_y2,r.dep_y3,r.dep_y4,r.dep_y5],
+          repC: r.repair_cost, moves: r.moves_eligible, movesAmt: r.moves_amount||0,
+          extras: r.extras||[],
+        }));
+        return VER_CACHE[vehId];
+      }
+    } catch(e) {}
+  }
+  const v = VEHS.find(x => x.id === vehId);
+  return v?.versions || [];
+}
+
+// ══════════════════════════════════════════════════
+// CATALOG RENDERING
+// ══════════════════════════════════════════════════
+function showSkeleton(n = 6) {
+  const g = document.getElementById('vgrid');
+  if (!g) return;
+  g.innerHTML = Array.from({ length: n }, () =>
+    `<div class="vcard-skel"><div class="skel-img"></div><div class="skel-info"><div class="skel-line sl-lg"></div><div class="skel-line sl-md"></div><div class="skel-line sl-sm"></div></div></div>`
+  ).join('');
+}
+
+function renderGrid() {
+  const g = document.getElementById('vgrid');
+  if (!g) return;
+  g.innerHTML = '';
+  const cnt = document.getElementById('catCount');
+  if (cnt) cnt.textContent = `${totalVehs || VEHS.length} modelos disponibles`;
+  VEHS.forEach(v => g.appendChild(makeVCard(v)));
+  if (hasMore) {
+    const btn = document.createElement('button');
+    btn.className = 'btn-load-more';
+    const rem = totalVehs - VEHS.length;
+    btn.textContent = `Ver más modelos (${rem} restantes) →`;
+    btn.onclick = () => { curPage++; loadVehicles(curFuel, curPage, true); };
+    g.appendChild(btn);
+  }
+}
+
+function affordChip(tco, pvp) {
+  if (!tcoParams.salario) return '';
+  const neto = calcNeto(tcoParams.salario);
+  const pct  = Math.round(tco.monthly / neto * 100);
+  const capOk = !tcoParams.capitalDisponible || tcoParams.capitalDisponible >= pvp * 0.20;
+  const bg  = pct <= 20 ? '#D1FAE5' : pct <= 28 ? '#FEF3C7' : '#FEE2E2';
+  const ico = pct <= 20 ? '✓' : pct <= 28 ? '⚠' : '✗';
+  const warn = (!capOk && tcoParams.financia !== false)
+    ? '<div style="font-size:9px;color:#92400E;margin-top:3px">Capital insuficiente para entrada 20%</div>' : '';
+  return '<div style="margin-bottom:7px"><span style="font-size:10px;font-weight:700;background:'
+    + bg + ';padding:3px 10px;border-radius:999px">' + ico + ' ' + pct + '% neto &middot; ' + fmtE(tco.monthly) + '/mes</span>' + warn + '</div>';
+}
+
+function makeVCard(v) {
+  const inCmp = cmpList.some(c => c.vehId === v.id);
+  const dimmed = !inCmp && cmpList.length >= 4;
+  const tco = calcTCO(v.versions?.[0] || { price: v.price, type: v.type, moves: v.moves, movesAmt: v.movesAmt });
+
+  const el = document.createElement('div');
+  el.className = 'vcard' + (inCmp ? ' sel' : '') + (dimmed ? ' dim' : '');
+  el.onclick = () => openVM(v.id);
+
+  const img = imgSrc(v);
+  const relColor = rcColor(v.rel);
+  const fuelCls = BG_CLS[v.type] || 'vi-bg-gas';
+  const typeCls = TYPE_CLS[v.type] || 'bt-gas';
+  const bodyEm = BODY_EMOJI[v.body] || '🚗';
+  const verCount = v.ver_count || v.versions?.length || 1;
+
+  el.innerHTML = `
+    <div class="vi ${fuelCls}">
+      <div class="vi-fb">${bodyEm}</div>
+      <img class="vi-img" src="${img}" alt="${v.brand} ${v.model}"
+        onload="this.style.opacity=1"
+        onerror="this.style.opacity=0" style="opacity:0;transition:opacity .6s .1s">
+      <div class="vi-fade"></div>
+      <div class="vi-badges">
+        <div class="badge-type ${typeCls}">${FUEL_LABEL[v.type]||v.type}</div>
+        ${v.award ? `<div class="badge-award">${v.award}</div>` : ''}
+        ${v.moves ? `<div class="badge-moves">✓ MOVES III</div>` : ''}
+      </div>
+      <div class="vi-sel-check">✓</div>
+      <div class="vi-ver-badge">📋 ${verCount} versiones</div>
+    </div>
+    <div class="vinfo">
+      <div>
+        <div class="vi-brand">${v.brand}</div>
+        <div class="vi-model">${v.model}</div>
+        <div class="vi-seg">${v.seg}</div>
+        <div class="vi-specs">
+          <div class="vis"><div class="vis-v">${v.versions?.[0]?.cv||'—'} CV</div><div class="vis-l">Potencia</div></div>
+          <div class="vis"><div class="vis-v">${v.versions?.[0]?.co2===0?'0g':((v.versions?.[0]?.co2||'—')+'g')}/km</div><div class="vis-l">CO₂</div></div>
+          <div class="vis"><div class="vis-v" style="color:${relColor}">${v.rel}/100</div><div class="vis-l">Fiabilidad</div></div>
+        </div>
+        <div class="vi-rel">
+          <div class="vrel-bar"><div class="vrel-fill" style="width:${v.rel}%;background:${relColor}"></div></div>
+          <div class="vrel-l">OCU+Recomotor 2025</div>
+        </div>
+      </div>
+      <div class="vi-bottom">
+        <div class="vi-prices">
+          <div class="vip-pvp"><div class="pvp-l">Desde</div><div class="pvp-v">${fmtE(v.price)}</div></div>
+          <div class="vip-tco"><div class="tco-l">TCO est./mes</div><div class="tco-v">${fmtE(tco.monthly)}/mes</div></div>
+        </div>
+        ${affordChip(tco, v.price)}
+        <div class="vi-btns">
+          <button class="btn-ver" onclick="event.stopPropagation();openVM('${v.id}')">${inCmp ? '✓ En comparador' : 'Ver versiones y TCO →'}</button>
+        </div>
+        <div style="font-size:10px;color:var(--n400);margin-top:7px;text-align:center">${verCount} versiones · ${fmtE(v.price)}–${fmtE(v.maxP||v.price)}</div>
+      </div>
+    </div>`;
+  return el;
+}
+
+// Filter
+function setFuelF(el) {
+  document.querySelectorAll('.fp[data-f]').forEach(f => f.classList.remove('on'));
+  el.classList.add('on');
+  curFuel = el.dataset.f; curPage = 0;
+  loadVehicles(curFuel);
+}
+function updateFuelPills() {
+  document.querySelectorAll('.fp[data-f]').forEach(f => {
+    f.classList.toggle('on', f.dataset.f === curFuel);
+  });
+}
+function filterSearch() {
+  curSearch = document.getElementById('catSearch').value.trim();
+  const q = curSearch.toLowerCase();
+  const vehs = VEHS_FALLBACK.filter(v =>
+    (!curSearch || v.brand.toLowerCase().includes(q) || v.model.toLowerCase().includes(q)) &&
+    (curFuel === 'all' || v.type === curFuel)
+  );
+  VEHS = vehs; totalVehs = vehs.length; hasMore = false;
+  renderGrid();
+}
+
+// ══════════════════════════════════════════════════
+// VERSION MODAL
+// ══════════════════════════════════════════════════
+async function openVM(vehId) {
+  vmVeh = VEHS.find(v => v.id === vehId) || VEHS_FALLBACK.find(v => v.id === vehId);
+  if (!vmVeh) return;
+  vmSelVer = null;
+  document.getElementById('vmAddBtn').disabled = true;
+  document.getElementById('vmHint').textContent = 'Cargando versiones…';
+
+  // Set header
+  document.getElementById('vmBrand').textContent = vmVeh.brand;
+  document.getElementById('vmModel').textContent = vmVeh.model;
+  document.getElementById('vmMeta').textContent = vmVeh.seg + ' · ' + FUEL_LABEL[vmVeh.type];
+  const fb = document.getElementById('vmFB');
+  fb.className = 'vm-h-fb ' + (BG_CLS[vmVeh.type]||'vi-bg-gas');
+  fb.textContent = BODY_EMOJI[vmVeh.body] || '🚗';
+  fb.style.cssText = 'border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:36px';
+
+  document.getElementById('vmO').classList.add('on');
+  document.body.style.overflow = 'hidden';
+
+  // Load versions
+  const versions = await loadVersions(vehId);
+  if (vmVeh) vmVeh.versions = versions;
+
+  // Fuel type filter tabs
+  const fuels = [...new Set(versions.map(v => v.type))];
+  const tb = document.getElementById('vmTB');
+  tb.innerHTML = '<span style="font-size:11px;color:var(--n400);padding:5px 8px;align-self:center">Motor:</span>';
+  const allBtn = document.createElement('button');
+  allBtn.className = 'vm-tb-btn on'; allBtn.textContent = 'Todos';
+  allBtn.onclick = () => { document.querySelectorAll('.vm-tb-btn').forEach(b=>b.classList.remove('on')); allBtn.classList.add('on'); renderVersions(versions); };
+  tb.appendChild(allBtn);
+  fuels.forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'vm-tb-btn';
+    b.textContent = FUEL_EMOJI[f] + ' ' + FUEL_LABEL[f];
+    b.onclick = () => { document.querySelectorAll('.vm-tb-btn').forEach(x=>x.classList.remove('on')); b.classList.add('on'); renderVersions(versions.filter(v=>v.type===f)); };
+    tb.appendChild(b);
+  });
+
+  document.getElementById('vmHint').textContent = 'Selecciona una versión para calcular el TCO';
+  renderVersions(versions);
+}
+
+function renderVersions(versions) {
+  const body = document.getElementById('vmBody');
+  body.innerHTML = '';
+  if (!versions.length) { body.innerHTML = '<div style="color:var(--n400);padding:24px;text-align:center">No hay versiones con este tipo de motor</div>'; return; }
+  versions.forEach(ver => {
+    const isSel = vmSelVer?.id === ver.id;
+    const inCmp = cmpList.some(c => c.verId === ver.id);
+    const tco = calcTCO(ver);
+    const vtp = VER_CLS[ver.type] || 'vtp-gas';
+    const consStr = ver.type === 'electrico' ? (ver.consKwh || '—') + ' kWh/100km'
+      : ver.type === 'phev' ? `${ver.consKwh||'—'}kWh + ${ver.consTh||'—'}L/100km`
+      : (ver.cons || '—') + ' L/100km';
+
+    const row = document.createElement('div');
+    row.className = 'ver-row' + (isSel ? ' vsel' : '') + (inCmp && !isSel ? ' vadd' : '');
+    row.onclick = () => {
+      vmSelVer = ver;
+      document.getElementById('vmAddBtn').disabled = false;
+      document.getElementById('vmHint').innerHTML = `<strong>${ver.finish}</strong> seleccionado · TCO/mes: <strong>${fmtE(tco.monthly)}</strong>`;
+      document.querySelectorAll('.ver-row').forEach(r => r.classList.remove('vsel'));
+      row.classList.add('vsel');
+    };
+    row.innerHTML = `
+      <div>
+        <div class="ver-finish">
+          ${ver.finish}
+          <span class="vtp ${vtp}">${FUEL_LABEL[ver.type]||ver.type}</span>
+          ${ver.moves ? '<span class="vtp" style="background:var(--gl);color:var(--g)">MOVES III</span>' : ''}
+          ${inCmp ? '<span class="vtp" style="background:var(--bl);color:var(--b)">✓ Añadido</span>' : ''}
+        </div>
+        <div class="ver-motor">${ver.motor}</div>
+        <div class="ver-specs">
+          ${ver.cv ? `<div class="vrs-it">${ver.cv}<span class="vrs-l">CV</span></div>` : ''}
+          ${ver.co2 !== undefined ? `<div class="vrs-it">${ver.co2===0?'0g/km':(ver.co2+'g/km')}<span class="vrs-l">CO₂</span></div>` : ''}
+          <div class="vrs-it">${consStr}<span class="vrs-l">cons. real</span></div>
+          <div class="vrs-it">${fmtE(ver.mant||0)}<span class="vrs-l">/año mant.</span></div>
+        </div>
+        ${ver.extras?.length ? `<div class="ver-extras">${ver.extras.slice(0,4).map(e=>`<span class="vext">${e}</span>`).join('')}</div>` : ''}
+      </div>
+      <div class="ver-r">
+        <div class="ver-price">${fmtE(ver.price)}</div>
+        ${ver.moves ? `<div class="ver-moves">-${fmtE(ver.movesAmt)} MOVES</div>` : ''}
+        <div class="ver-tco">${fmtE(tco.monthly)}/mes TCO</div>
+        <button class="ver-btn" onclick="event.stopPropagation();openTCODetail('${vmVeh.id}','${ver.id}')">Ver TCO detallado →</button>
+      </div>`;
+    body.appendChild(row);
+  });
+}
+
+function closeVM() {
+  document.getElementById('vmO').classList.remove('on');
+  document.body.style.overflow = '';
+}
+
+function addToCmp() {
+  if (!vmSelVer || !vmVeh) return;
+  if (cmpList.some(c => c.verId === vmSelVer.id)) { showToast('Esta versión ya está en el comparador', 'err'); return; }
+  if (cmpList.length >= 4) { showToast('Máximo 4 vehículos en el comparador', 'err'); return; }
+  cmpList.push({ vehId: vmVeh.id, verId: vmSelVer.id, veh: vmVeh, ver: vmSelVer });
+  updateCmpBar();
+  renderGrid();
+  closeVM();
+  showToast(`${vmVeh.model} ${vmSelVer.finish} añadido al comparador ✓`, 'ok');
+  // Track anonymous
+  trackAnon('compare_add', vmVeh, vmSelVer);
+}
+
+// ══════════════════════════════════════════════════
+// TCO DETAIL
+// ══════════════════════════════════════════════════
+function openTCODetail(vehId, verId) {
+  const veh = VEHS.find(v=>v.id===vehId) || VEHS_FALLBACK.find(v=>v.id===vehId);
+  const ver = veh?.versions?.find(v=>v.id===verId) || vmSelVer;
+  if (!ver) return;
+  const tco = calcTCO(ver, tcoParams);
+  renderTCOResult(tco, veh, ver);
+}
+
+function renderTCOResult(tco, veh, ver) {
+  const body = document.getElementById('resBody');
+  const fuel = ver.type || veh.type;
+
+  // Formula label
+  document.getElementById('resFormula').textContent =
+    `TCO = D(${fmtE(tco.breakdown.D)}) + F(${fmtE(tco.breakdown.F)}) + E(${fmtE(tco.breakdown.E)}) + S(${fmtE(tco.breakdown.S)}) + M(${fmtE(tco.breakdown.M)}) + N(${fmtE(tco.breakdown.N)}) + T(${fmtE(tco.breakdown.T_ivtm+tco.breakdown.T_itv)}) + C(${fmtE(tco.breakdown.C)}) – VR(${fmtE(tco.VR)})`;
+
+  const neto = tcoParams.salario ? calcNeto(tcoParams.salario) : 0;
+  const pctNeto = neto ? Math.round(tco.monthly / neto * 100) : 0;
+
+  let affClass = 'ac-none', affIcon = '💡', affStatus = 'Introduce tu salario en configuración', affDetail = '';
+  let affBarColor = 'var(--n300)', affBarW = 0;
+  if (neto) {
+    affBarW = Math.min(100, pctNeto);
+    if (pctNeto <= 13) { affClass='ac-ok'; affIcon='✅'; affStatus=`Muy asequible (${pctNeto}% del neto)`; affDetail=`El vehículo consume ${pctNeto}% de tu neto mensual. Muy por debajo del umbral recomendado del 20%.`; affBarColor='var(--g)'; }
+    else if (pctNeto <= 20) { affClass='ac-ok'; affIcon='✅'; affStatus=`Asequible (${pctNeto}% del neto)`; affDetail=`Dentro del umbral recomendado del 20%.`; affBarColor='var(--g)'; }
+    else if (pctNeto <= 28) { affClass='ac-warn'; affIcon='⚠️'; affStatus=`Ajustado (${pctNeto}% del neto)`; affDetail=`Supera ligeramente el umbral recomendado del 20%.`; affBarColor='#D97706'; }
+    else { affClass='ac-over'; affIcon='🚫'; affStatus=`Excede el presupuesto (${pctNeto}% del neto)`; affDetail=`El TCO consume el ${pctNeto}% del neto mensual.`; affBarColor='var(--red)'; }
+  }
+
+  // Breakdown items
+  const items = [
+    { label: 'Depreciación neta (D)', sub: `PVP neto ${fmtE(tco.pvpNeto)} → VR ${fmtE(tco.VR)}`, val: tco.breakdown.D, color: BKCOLORS[0] },
+    { label: tcoParams.financia ? 'Coste de financiación (F)' : 'Coste de oportunidad (F)', sub: tcoParams.financia ? `TAE ${tcoParams.tae}%` : `Capital a ${tcoParams.rentAlt}% alternativo`, val: tco.breakdown.F, color: BKCOLORS[1] },
+    { label: 'Energía (E)', sub: FUEL_LABEL[fuel], val: tco.breakdown.E, color: BKCOLORS[2] },
+    { label: 'Seguro (S)', sub: `${fmtE(Math.round(tco.breakdown.S/tco.years))}/año promedio escalado`, val: tco.breakdown.S, color: BKCOLORS[3] },
+    { label: 'Mantenimiento + Reparaciones (M)', sub: `${fmtE(tco.mantAnual+tco.repAnual)}/año`, val: tco.breakdown.M, color: BKCOLORS[4] },
+    { label: 'Neumáticos (N)', sub: `${tco.tyrCambios} cambios × ${fmtE(ver.tyrC||520)}`, val: tco.breakdown.N, color: BKCOLORS[5] },
+    { label: 'IVTM (T_ivtm)', sub: `${fmtE(tco.ivtmReal)}/año${fuel==='electrico'?' (bonif. 75%)':''}`, val: tco.breakdown.T_ivtm, color: BKCOLORS[6] },
+    { label: 'ITV (T_itv)', sub: `${fmtE(tco.itvC)}/inspección · exento 0-3 años`, val: tco.breakdown.T_itv, color: BKCOLORS[7] },
+  ];
+  if (tco.breakdown.C > 0) items.push({ label: 'Costes contextuales (C)', sub: 'Parking + Wallbox + ZBE', val: tco.breakdown.C, color: BKCOLORS[8] });
+  if (tco.breakdown.bf > 0) items.push({ label: 'Ahorro fiscal IRPF', sub: 'Deducción costes profesionales', val: -tco.breakdown.bf, color: '#6EE7B7' });
+
+  const maxVal = Math.max(...items.map(i => Math.abs(i.val)));
+
+  body.innerHTML = `
+    <div class="tco-hero">
+      <div class="tco-hero-inner">
+        <div class="tco-hero-label">Coste Total de Propiedad · ${tco.years} años · ${fmt(tco.kmTotal)}km</div>
+        <div class="tco-hero-v">${fmt(tco.TCO)}<span> €</span></div>
+        <div class="tco-hero-sub">${veh?.brand||''} ${veh?.model||''} ${ver.finish} · ${FUEL_LABEL[fuel]}</div>
+        <div class="tco-kpis">
+          <div class="tco-kpi"><div class="kpi-v">${fmt(tco.monthly)}</div><div class="kpi-l">€ / mes</div></div>
+          <div class="tco-kpi"><div class="kpi-v">${tco.perKm}</div><div class="kpi-l">€ / km</div></div>
+          <div class="tco-kpi"><div class="kpi-v">${fmt(tco.annual)}</div><div class="kpi-l">€ / año</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="afford-card ${affClass}">
+      <div class="aff-ic">${affIcon}</div>
+      <div class="aff-body">
+        <div class="aff-s">${affStatus}</div>
+        <div class="aff-d">${affDetail || 'Añade tu salario en el menú de configuración para ver el análisis de asequibilidad personalizado'}</div>
+        ${neto ? `<div class="aff-bar-w"><div class="aff-bar-f" style="width:${affBarW}%;background:${affBarColor}"></div></div>` : ''}
+      </div>
+    </div>
+    <div class="breakdown">
+      <div class="bk-h"><div class="bk-title">Desglose de costes</div><div class="bk-period">${tco.years} años · ${fmtK(tco.kmTotal)}</div></div>
+      <div class="bk-body" id="bkBody"></div>
+      <div class="bk-formula">
+        <div class="bk-formula-txt">TCO = D (Depreciación) + F (Financiación/Oportunidad) + E (Energía) + S (Seguro) + M (Mantenimiento) + N (Neumáticos) + T_ivtm (IVTM) + T_itv (ITV) + C (Contextuales) − VR (Valor residual)<br>Fuente metodológica: Arval Mobility Observatory · Eurotax · Banco de España 2025</div>
+      </div>
+    </div>
+    <div class="res-charts">
+      <div class="chart-box"><div class="chart-t">Distribución TCO</div><div class="chart-s">% por categoría de coste</div><div class="chart-h"><canvas id="pieChart"></canvas></div></div>
+      <div class="chart-box"><div class="chart-t">Depreciación año a año</div><div class="chart-s">Valor residual estimado (€)</div><div class="chart-h"><canvas id="barChart"></canvas></div></div>
+    </div>
+    <div class="save-box">
+      <div class="save-box-t">Guardar este estudio</div>
+      <div class="save-box-s">Si guardas este análisis contribuyes de forma anonimizada a los estudios de mercado de AutoCoste. Nunca se comparten datos personales individuales.</div>
+      <button class="btn-save" id="saveBtn" onclick="saveStudy('${veh?.id}','${ver.id}')">Guardar estudio ${user ? '→' : '(se requiere cuenta gratuita) →'}</button>
+    </div>`;
+
+  // Populate breakdown
+  const bk = document.getElementById('bkBody');
+  items.forEach(item => {
+    const pct = tco.TCO > 0 ? Math.round(Math.abs(item.val) / tco.TCO * 100) : 0;
+    const bw = maxVal > 0 ? Math.round(Math.abs(item.val) / maxVal * 100) : 0;
+    const neg = item.val < 0;
+    const d = document.createElement('div'); d.className = 'bk-item';
+    d.innerHTML = `<div class="bk-dot" style="background:${item.color}"></div>
+      <div class="bk-l"><div class="bk-label">${item.label}</div><div class="bk-sub">${item.sub}</div></div>
+      <div class="bk-bar-w"><div class="bk-bar-f" style="width:${bw}%;background:${item.color}"></div></div>
+      <div class="bk-val" style="color:${neg?'var(--g)':'inherit'}">${neg?'−':''}${fmtE(Math.round(Math.abs(item.val)))}</div>
+      <div class="bk-pct">${pct}%</div>`;
+    bk.appendChild(d);
+  });
+  const tot = document.createElement('div'); tot.className = 'bk-total';
+  tot.innerHTML = `<span class="bk-tl">TCO Total ${tco.years} años</span><span class="bk-tv">${fmtE(tco.TCO)}</span>`;
+  bk.appendChild(tot);
+
+  document.getElementById('resO').classList.add('on');
+  document.body.style.overflow = 'hidden';
+
+  // Charts
+  requestAnimationFrame(() => {
+    if (pieChart) pieChart.destroy();
+    if (barChart) barChart.destroy();
+    const posItems = items.filter(i => i.val > 0);
+    pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: posItems.map(i=>i.label.split(' (')[0]), datasets: [{ data: posItems.map(i=>i.val), backgroundColor: posItems.map(i=>i.color), borderWidth: 2, borderColor: '#fff' }] },
+      options: { responsive: true, maintainAspectRatio: false, cutout: '65%',
+        plugins: { legend: { position: 'right', labels: { font: { size: 9 }, boxWidth: 9, padding: 6 } },
+        tooltip: { callbacks: { label: c => `${c.label}: ${fmtE(Math.round(c.raw))} (${Math.round(c.raw/tco.TCO*100)}%)` } } } }
+    });
+    barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: tco.depYearly.map(d=>`Año ${d.year}`),
+        datasets: [{ label: 'Valor residual', data: tco.depYearly.map(d=>Math.round(d.vr)), backgroundColor: 'rgba(15,52,96,.75)', borderRadius: 5 }]
+      },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c=>`VR: ${fmtE(c.raw)}` } } },
+        scales: { x: { grid: { display: false }, ticks: { font: { size: 10 } } }, y: { ticks: { callback: v=>fmtE(v), font: { size: 9 } } } }
+      }
+    });
+  });
+
+  trackAnon('tco_view', veh, ver, tco);
+}
+
+function closeRes() {
+  document.getElementById('resO').classList.remove('on');
+  document.body.style.overflow = '';
+  if (pieChart) { pieChart.destroy(); pieChart = null; }
+  if (barChart) { barChart.destroy(); barChart = null; }
+}
+
+// ══════════════════════════════════════════════════
+// COMPARE
+// ══════════════════════════════════════════════════
+function updateCmpBar() {
+  const bar = document.getElementById('cmpBar');
+  const badge = document.getElementById('cmpBadge');
+  bar.classList.toggle('on', cmpList.length > 0);
+  if (badge) { badge.textContent = cmpList.length; badge.style.display = cmpList.length ? 'inline' : 'none'; }
+  const sl = document.getElementById('cmpSlots');
+  sl.innerHTML = '';
+  cmpList.forEach((c, i) => {
+    const d = document.createElement('div'); d.className = 'cmpb-slot full';
+    d.innerHTML = `<img src="${imgSrc(c.veh)}" onerror="this.style.display='none'" style="width:40px;height:26px;object-fit:cover;border-radius:3px;background:var(--n200)">
+      <div class="cmpb-si"><div class="cmpb-n">${c.veh.model}</div><div class="cmpb-s">${c.ver.finish}</div></div>
+      <button class="cmpb-rm" onclick="removeCmp(${i})">✕</button>`;
+    sl.appendChild(d);
+  });
+  for (let i = cmpList.length; i < 4; i++) {
+    const d = document.createElement('div'); d.className = 'cmpb-slot';
+    d.innerHTML = `<div class="cmpb-empty" style="font-size:11px;color:var(--n400)">+ Añadir</div>`;
+    sl.appendChild(d);
+  }
+}
+function removeCmp(i) { cmpList.splice(i, 1); updateCmpBar(); renderGrid(); }
+function clearCmp() { cmpList = []; updateCmpBar(); renderGrid(); }
+
+function showCmpResult() {
+  if (!cmpList.length) return;
+  showSec('compare');
+  renderCmpTable();
+}
+
+function renderCmpTable() {
+  const el = document.getElementById('cmpTable');
+  if (!cmpList.length) { el.innerHTML = '<div style="color:var(--n400);font-size:14px;padding:40px 0;text-align:center">Añade vehículos desde el catálogo</div>'; return; }
+  const rows = [
+    { label: 'Precio', key: r => fmtE(r.ver.price) },
+    { label: 'MOVES III', key: r => r.ver.moves ? fmtE(r.ver.movesAmt) : '—' },
+    { label: 'Precio neto', key: r => fmtE(r.ver.price - (r.ver.movesAmt||0)) },
+    { label: 'Motor', key: r => r.ver.motor },
+    { label: 'CV', key: r => r.ver.cv || '—' },
+    { label: 'CO₂', key: r => r.ver.co2 === 0 ? '0g/km' : (r.ver.co2||'—')+'g/km' },
+    { label: 'Consumo', key: r => r.ver.type==='electrico'?(r.ver.consKwh||'—')+'kWh/100km':(r.ver.cons||'—')+'L/100km' },
+    { label: 'Fiabilidad', key: r => (r.veh.rel||'—')+'/100' },
+    { label: 'Mant./año', key: r => fmtE(r.ver.mant||500) },
+    { label: '───', key: () => '───' },
+    { label: 'TCO Total (5a)', key: r => { const t=calcTCO(r.ver); return fmtE(t.TCO); }, highlight: true },
+    { label: 'TCO / mes', key: r => { const t=calcTCO(r.ver); return fmtE(t.monthly); }, highlight: true },
+    { label: 'TCO / km', key: r => { const t=calcTCO(r.ver); return t.perKm+'€'; }, highlight: true },
+    { label: 'Valor residual', key: r => { const t=calcTCO(r.ver); return fmtE(t.VR); } },
+  ];
+  let html = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr><th style="text-align:left;padding:10px 16px;background:var(--n50);border-bottom:2px solid var(--n200);font-size:11px;color:var(--n400);text-transform:uppercase;letter-spacing:.07em">Parámetro</th>`;
+  cmpList.forEach(c => { html += `<th style="padding:10px 16px;background:var(--n50);border-bottom:2px solid var(--n200);text-align:center">${c.veh.brand}<br><span style="font-family:var(--serif);font-size:15px;font-weight:900">${c.veh.model}</span><br><span style="font-size:11px;color:var(--n400)">${c.ver.finish}</span></th>`; });
+  html += '</tr></thead><tbody>';
+  rows.forEach((row, ri) => {
+    const hl = row.highlight;
+    html += `<tr style="border-bottom:1px solid var(--n100);${hl?'background:var(--bl)':''}"><td style="padding:10px 16px;font-weight:${hl?800:500};color:${hl?'var(--b)':'var(--n700)'};">${row.label}</td>`;
+    cmpList.forEach(c => { html += `<td style="padding:10px 16px;text-align:center;font-family:${hl?'var(--mono)':'inherit'};font-weight:${hl?800:500}">${row.key(c)}</td>`; });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += `<div style="margin-top:14px;font-size:11px;color:var(--n400);text-align:center">TCO calculado con parámetros estándar: 5 años · 15.000km/año · mix de carga · datos de mercado Abr 2025</div>`;
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════
+// ANONYMOUS TRACKING
+// ══════════════════════════════════════════════════
+function trackAnon(type, veh, ver, tco) {
+  try {
+    const sessions = JSON.parse(localStorage.getItem('ac_sessions') || '[]');
+    const salario = tcoParams.salario || 0;
+    const salRange = salario < 20000 ? '<20k' : salario < 30000 ? '20-30k' : salario < 40000 ? '30-40k' : salario < 60000 ? '40-60k' : '>60k';
+    const entry = {
+      ts: Date.now(), type, fuel: veh?.type,
+      pvp_range: ver?.price < 20000 ? '<20k' : ver?.price < 35000 ? '20-35k' : ver?.price < 50000 ? '35-50k' : '>50k',
+      years: tcoParams.years, km: tcoParams.kmYear,
+      tco_monthly: tco?.monthly || 0, tco_total: tco?.TCO || 0,
+      salary_range: salRange, brand: veh?.brand,
+    };
+    sessions.push(entry);
+    if (sessions.length > 200) sessions.splice(0, sessions.length - 200);
+    localStorage.setItem('ac_sessions', JSON.stringify(sessions));
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════
+// SAVE STUDY
+// ══════════════════════════════════════════════════
+async function saveStudy(vehId, verId) {
+  if (!user) { openAuth('reg'); return; }
+  const veh = VEHS.find(v=>v.id===vehId)||VEHS_FALLBACK.find(v=>v.id===vehId);
+  const ver = veh?.versions?.find(v=>v.id===verId)||vmSelVer;
+  if (!ver) return;
+  const tco = calcTCO(ver, tcoParams);
+  const study = { veh_id: vehId, ver_id: verId, brand: veh?.brand, model: veh?.model, finish: ver.finish, tco, params: tcoParams, ts: Date.now() };
+  // localStorage
+  try {
+    const studies = JSON.parse(localStorage.getItem('ac_studies_'+user.id) || '[]');
+    studies.unshift(study);
+    localStorage.setItem('ac_studies_'+user.id, JSON.stringify(studies.slice(0, 50)));
+  } catch(e) {}
+  // Supabase (anon data)
+  if (supa && SUPABASE_URL !== 'https://TU-PROYECTO.supabase.co') {
+    try {
+      await supa.from('studies').insert({ user_id: user.id, title: `${veh?.brand} ${veh?.model} ${ver.finish}`, vehicles: [vehId], params: tcoParams, results: { tco: tco.TCO, monthly: tco.monthly } });
+    } catch(e) {}
+  }
+  const btn = document.getElementById('saveBtn');
+  if (btn) { btn.textContent = '✓ Estudio guardado'; btn.classList.add('saved'); }
+  showToast('Estudio guardado ✓', 'ok');
+}
+
+function renderStudies() {
+  const el = document.getElementById('studiesList');
+  if (!user) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--n400)">Crea una cuenta gratuita para guardar y consultar tus estudios</div>'; return; }
+  try {
+    const studies = JSON.parse(localStorage.getItem('ac_studies_'+user.id) || '[]');
+    if (!studies.length) { el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--n400)">Todavía no tienes estudios guardados</div>'; return; }
+    el.innerHTML = studies.slice(0,20).map(s => `
+      <div class="strow" onclick="showToast('Cargando estudio…')">
+        <div class="strow-ic">🚗</div>
+        <div style="flex:1"><div class="strow-t">${s.brand} ${s.model} ${s.finish}</div><div class="strow-s">${new Date(s.ts).toLocaleDateString('es-ES')} · ${s.params?.years||5}a · ${s.params?.kmYear?.toLocaleString('es-ES')||'15.000'}km/año</div></div>
+        <div class="strow-m"><div class="strow-d">${fmtE(s.tco?.monthly||0)}/mes</div><div class="strow-b">TCO ${fmtE(s.tco?.TCO||0)}</div></div>
+      </div>`).join('');
+  } catch(e) { el.innerHTML = '<div style="color:var(--n400);padding:20px">Error cargando estudios</div>'; }
+}
+
+// ══════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════
+function openAuth(tab = 'login') { document.getElementById('authO').classList.add('on'); document.body.style.overflow = 'hidden'; switchAuth(tab); }
+function closeAuth() { document.getElementById('authO').classList.remove('on'); document.body.style.overflow = ''; }
+function switchAuth(tab) {
+  document.getElementById('loginF').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('regF').style.display = tab === 'reg' ? 'block' : 'none';
+  document.getElementById('at-login').classList.toggle('on', tab === 'login');
+  document.getElementById('at-reg').classList.toggle('on', tab === 'reg');
+  document.getElementById('authErr').classList.remove('on');
+}
+function showAuthErr(msg) { const e=document.getElementById('authErr'); e.textContent=msg; e.classList.add('on'); }
+
+async function doLogin() {
+  const email = document.getElementById('lEmail').value.trim();
+  const pass = document.getElementById('lPass').value;
+  if (!email) return showAuthErr('Introduce tu email');
+  if (!pass) return showAuthErr('Introduce tu contraseña');
+  if (!supa || SUPABASE_URL === 'https://TU-PROYECTO.supabase.co') {
+    const name = email.split('@')[0].replace(/[._-]/g,' ').split(' ').map(w=>w[0]?.toUpperCase()+w.slice(1)).join(' ');
+    setUser({ id: 'demo-' + Date.now(), name, email }); closeAuth(); return;
+  }
+  const { data, error } = await supa.auth.signInWithPassword({ email, password: pass });
+  if (error) return showAuthErr('Email o contraseña incorrectos');
+  const { data: prof } = await supa.from('profiles').select('*').eq('id', data.user.id).single();
+  setUser({ id: data.user.id, name: prof?.nombre || email.split('@')[0], email });
+  closeAuth();
+}
+
+async function doRegister() {
+  const n = document.getElementById('rName').value.trim();
+  const l = document.getElementById('rLast').value.trim();
+  const email = document.getElementById('rEmail').value.trim();
+  const pass = document.getElementById('rPass').value;
+  const ca = document.getElementById('rCA').value;
+  if (!n) return showAuthErr('Introduce tu nombre');
+  if (!email) return showAuthErr('Introduce tu email');
+  if (pass.length < 8) return showAuthErr('Mínimo 8 caracteres');
+  if (!supa || SUPABASE_URL === 'https://TU-PROYECTO.supabase.co') {
+    setUser({ id: 'demo-' + Date.now(), name: n + (l ? ' ' + l : ''), email, ca });
+    closeAuth(); return;
+  }
+  const { data, error } = await supa.auth.signUp({ email, password: pass, options: { data: { nombre: n } } });
+  if (error) return showAuthErr(error.message === 'User already registered' ? 'Ya existe una cuenta con ese email' : error.message);
+  if (data.user) {
+    await supa.from('profiles').update({ nombre: n, apellidos: l, ccaa: ca }).eq('id', data.user.id);
+    // Upload anonymous sessions
+    uploadAnonSessions(data.user.id);
+  }
+  setUser({ id: data.user?.id || 'demo', name: n + (l ? ' '+l : ''), email, ca });
+  closeAuth();
+}
+
+function setUser(u) {
+  user = u;
+  const initials = u.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  document.getElementById('avBtn').textContent = initials;
+  document.getElementById('avName').textContent = u.name;
+  document.getElementById('avEmail').textContent = u.email;
+  document.getElementById('avLogin').style.display = 'none';
+  document.getElementById('avReg').style.display = 'none';
+  document.getElementById('avLogout').style.display = 'flex';
+  showToast(`Bienvenido, ${u.name.split(' ')[0]} ✓`, 'ok');
+}
+
+function logout() {
+  user = null;
+  document.getElementById('avBtn').textContent = '?';
+  document.getElementById('avName').textContent = 'Invitado';
+  document.getElementById('avEmail').textContent = 'Sin cuenta';
+  document.getElementById('avLogin').style.display = 'flex';
+  document.getElementById('avReg').style.display = 'flex';
+  document.getElementById('avLogout').style.display = 'none';
+  document.getElementById('avDrop').classList.remove('on');
+  if (supa) supa.auth.signOut();
+  showToast('Sesión cerrada');
+}
+
+async function uploadAnonSessions(userId) {
+  try {
+    const sessions = JSON.parse(localStorage.getItem('ac_sessions') || '[]');
+    if (!sessions.length || !supa) return;
+    for (const s of sessions.slice(-20)) {
+      await supa.from('search_events').insert({ event_type: s.type, fuel_type: s.fuel, salary_range: s.salary_range, pvp_range: s.pvp_range });
+    }
+    localStorage.removeItem('ac_sessions');
+  } catch(e) {}
+}
+
+// Restore session on load
+async function restoreSession() {
+  if (!supa || SUPABASE_URL === 'https://TU-PROYECTO.supabase.co') return;
+  try {
+    const { data } = await supa.auth.getSession();
+    if (data?.session?.user) {
+      const u = data.session.user;
+      const { data: prof } = await supa.from('profiles').select('*').eq('id', u.id).single();
+      setUser({ id: u.id, name: prof?.nombre || u.email.split('@')[0], email: u.email });
+    }
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════
+// PROFILE ENGINE — integrado en el catálogo
+// ══════════════════════════════════════════════════
+
+function onProfileChange() {
+  const salario  = parseFloat(document.getElementById('prf-salario')?.value) || 0;
+  const capital  = parseFloat(document.getElementById('prf-capital')?.value) || 0;
+  const gastos   = parseFloat(document.getElementById('prf-gastos')?.value) || 0;
+  const plazo    = parseInt(document.getElementById('prf-plazo')?.value) || 60;
+  const tae      = parseFloat(document.getElementById('prf-tae')?.value) || 6.85;
+  const years    = parseInt(document.getElementById('prf-years')?.value) || 5;
+  const kmYear   = parseInt(document.getElementById('prf-km')?.value) || 15000;
+
+  tcoParams = { ...tcoParams, salario, capitalDisponible: capital, gastosBase: gastos, plazo, tae, years, kmYear };
+
+  const neto = salario ? calcNeto(salario) : 0;
+
+  // Neto hint
+  const netoEl = document.getElementById('prf-neto-val');
+  if (netoEl) netoEl.textContent = neto ? 'Neto estimado: ' + fmtE(neto) + '/mes' : '';
+
+  // Mini result card
+  const res = document.getElementById('prf-result-mini');
+  if (res) {
+    if (salario > 0 || capital > 0) {
+      res.style.display = 'block';
+      const maxMensual = neto ? Math.round(neto * 0.20) : 0;
+      // Max PVP: capital como entrada + financiación hasta cuota máxima
+      let maxPVP = 0;
+      if (tcoParams.financia !== false) {
+        const cuotaMax = maxMensual > 0 ? maxMensual * 0.75 : 0; // 75% del tope para dejar margen op./seguro
+        const taeM = tae / 100 / 12;
+        const capFin = taeM > 0 && cuotaMax > 0 ? cuotaMax * (1 - Math.pow(1 + taeM, -plazo)) / taeM : cuotaMax * plazo;
+        maxPVP = Math.round(capital + capFin);
+      } else {
+        maxPVP = capital;
+      }
+      document.getElementById('prf-max-pvp').textContent = maxPVP > 0 ? fmtE(maxPVP) : '—';
+      document.getElementById('prf-max-sub').textContent = maxPVP > 0
+        ? (tcoParams.financia !== false ? 'Entrada ' + fmtE(capital) + ' + financiación' : 'Compra al contado')
+        : 'Introduce salario o capital';
+      document.getElementById('prf-neto-mini').textContent  = neto ? fmtE(neto) : '—';
+      document.getElementById('prf-max-mes').textContent = maxMensual ? fmtE(maxMensual) : '—';
+      // Green dot
+      const ind = document.getElementById('prf-indicator');
+      if (ind) ind.style.display = 'block';
+    } else {
+      res.style.display = 'none';
+    }
+  }
+
+  // Re-render grid to update affordability chips
+  if (VEHS.length > 0) renderGrid();
+
+  // Persist
+  try { localStorage.setItem('ac_profile', JSON.stringify(tcoParams)); } catch(e) {}
+}
+
+function setPrfFin(financia) {
+  tcoParams.financia = financia;
+  const fb = document.getElementById('prf-fin-btn');
+  const cb = document.getElementById('prf-cnt-btn');
+  const ff = document.getElementById('prf-fin-fields');
+  if (fb) { fb.style.background = financia ? 'var(--ink)' : 'var(--n0)'; fb.style.color = financia ? '#fff' : 'var(--n500)'; }
+  if (cb) { cb.style.background = !financia ? 'var(--ink)' : 'var(--n0)'; cb.style.color = !financia ? '#fff' : 'var(--n500)'; }
+  if (ff) ff.style.display = financia ? 'block' : 'none';
+  onProfileChange();
+}
+
+function loadProfileLocal() {
+  try {
+    const p = JSON.parse(localStorage.getItem('ac_profile') || '{}');
+    if (!p.salario && !p.capitalDisponible) return;
+    tcoParams = { ...tcoParams, ...p };
+    const s = id => document.getElementById(id);
+    if (s('prf-salario')  && p.salario)            s('prf-salario').value  = p.salario;
+    if (s('prf-capital')  && p.capitalDisponible)  s('prf-capital').value  = p.capitalDisponible;
+    if (s('prf-gastos')   && p.gastosBase)         s('prf-gastos').value   = p.gastosBase;
+    if (s('prf-plazo')    && p.plazo)              s('prf-plazo').value    = p.plazo;
+    if (s('prf-tae')      && p.tae)                s('prf-tae').value      = p.tae;
+    if (s('prf-years')    && p.years)              s('prf-years').value    = p.years;
+    if (s('prf-km')       && p.kmYear)             s('prf-km').value       = p.kmYear;
+    setPrfFin(p.financia !== false);
+    onProfileChange();
+  } catch(e) {}
+}
+
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  restoreSession();
+  VEHS = [...VEHS_FALLBACK];
+  renderGrid();
+  loadProfileLocal();
+});
+
+
+// ══════════════════════════════════════════════════
