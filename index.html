@@ -442,7 +442,7 @@ img { max-width: 100%; display: block }
 
 .vi-img {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; object-position: center center;
+  object-fit: cover; object-position: center 40%;
   transition: transform .55s cubic-bezier(.25,.46,.45,.94), opacity .6s .1s;
   will-change: transform;
 }
@@ -1680,11 +1680,78 @@ const IMAGIN_MAP = {
   'smart-hash1':['smart','hash1'],'smart-hash3':['smart','hash3'],
 };
 
+// Imágenes reales por modelo — CDNs oficiales de fabricantes
+const IMG_URLS = {
+  'toyota-yaris-hev':      'https://www.toyota.es/content/dam/toyota/master/models/yaris/my24/grade-models/yaris-hev/carousel/Toyota_Yaris_HEV_MY24_001.png',
+  'toyota-corolla-hev':    'https://www.toyota.es/content/dam/toyota/master/models/corolla-hatchback/my23/carousel/Toyota-Corolla-HB-MY23.png',
+  'toyota-chr-hev':        'https://www.toyota.es/content/dam/toyota/master/models/c-hr/my24/carousel/Toyota-CHR-Hybrid-MY24.png',
+  'toyota-rav4-hev':       'https://www.toyota.es/content/dam/toyota/master/models/rav4-hybrid/my23/carousel/RAV4HV_MY23_White_001.png',
+  'toyota-rav4-phev':      'https://www.toyota.es/content/dam/toyota/master/models/rav4-plug-in-hybrid/my23/carousel/RAV4PHEV_MY23_White_001.png',
+  'toyota-bz4x':           'https://www.toyota.es/content/dam/toyota/master/models/bz4x/my23/carousel/bZ4X_MY23_White_001.png',
+  'kia-ev3':               'https://www.kia.com/content/dam/kia2/es/es/models/ev3/ev3-highlights/ev3-main-pc.png',
+  'kia-ev6':               'https://www.kia.com/content/dam/kia2/es/es/models/ev6/ev6-highlights/ev6-main-pc.png',
+  'kia-ev9':               'https://www.kia.com/content/dam/kia2/es/es/models/ev9/ev9-highlights/ev9-main-pc.png',
+  'kia-sportage':          'https://www.kia.com/content/dam/kia2/es/es/models/sportage/sportage-highlights/sportage-main-pc.png',
+  'kia-niro-hev':          'https://www.kia.com/content/dam/kia2/es/es/models/niro/niro-highlights/niro-main-pc.png',
+  'hyundai-ioniq5':        'https://www.hyundai.com/content/dam/hyundai/es/es/data/models/ioniq5/highlights/exterior/ioniq5-pe-highlights-exterior-01-pc.png',
+  'hyundai-ioniq6':        'https://www.hyundai.com/content/dam/hyundai/es/es/data/models/ioniq6/highlights/exterior/ioniq6-pe-highlights-exterior-01-pc.png',
+  'hyundai-tucson':        'https://www.hyundai.com/content/dam/hyundai/es/es/data/models/tucson/highlights/exterior/tucson-pe-highlights-exterior-01-pc.png',
+  'volkswagen-id4':        'https://www.volkswagen.es/content/dam/nemo/es/models/id4/gallery/01_gallery/VWES_ID4_MY21_DesignGallery_01.jpg',
+  'volkswagen-id3':        'https://www.volkswagen.es/content/dam/nemo/es/models/id3/gallery/01_gallery/VWES_ID3_MY21_DesignGallery_01.jpg',
+  'volkswagen-golf':       'https://www.volkswagen.es/content/dam/nemo/es/models/golf/gallery/01_gallery/VWES_Golf8_MY20_DesignGallery_01.jpg',
+  'tesla-model3':          'https://digitalassets.tesla.com/tesla-contents/image/upload/f_auto,q_auto/Mega-Menu-Vehicles-Model-3.png',
+  'tesla-modely':          'https://digitalassets.tesla.com/tesla-contents/image/upload/f_auto,q_auto/Mega-Menu-Vehicles-Model-Y.png',
+  'dacia-sandero':         'https://www.dacia.es/content/dam/dacia/models/sandero/my22/gallery/exterior/dacia-sandero-my22-gallery-exterior-01.jpg',
+  'dacia-duster':          'https://www.dacia.es/content/dam/dacia/models/duster/my24/gallery/exterior/dacia-new-duster-gallery-exterior-01.jpg',
+  'renault-5-ev':          'https://www.renault.es/content/dam/Renault/renault-5-e-tech-100-percentelectric/my24/gallery/exterior/renault-5-e-tech-my24-gallery-exterior-01.jpg',
+  'renault-clio':          'https://www.renault.es/content/dam/Renault/clio/my24/gallery/exterior/renault-clio-my24-gallery-exterior-01.jpg',
+  'peugeot-e208':          'https://www.peugeot.es/content/dam/peugeot/models/208/2023/gallery/exterior/peugeot-208-2023-gallery-exterior-01.jpg',
+  'peugeot-3008-electric': 'https://www.peugeot.es/content/dam/peugeot/models/e-3008/2024/gallery/exterior/peugeot-e-3008-2024-gallery-exterior-01.jpg',
+  'volvo-ex30':            'https://www.volvocars.com/images/cars/ex30/my24/gallery/exterior/v526-exterior-gallery-1-16x9.jpg',
+  'volvo-xc40':            'https://www.volvocars.com/images/cars/xc40/my24/gallery/exterior/v526-exterior-gallery-1-16x9.jpg',
+  'bmw-ix3':               'https://www.bmw.es/content/dam/bmw/marketES/bmw_es/models/ix3/gallery/bmw-ix3-gallery-01.jpg',
+  'bmw-x3':                'https://www.bmw.es/content/dam/bmw/marketES/bmw_es/models/x3/gallery/bmw-x3-gallery-01.jpg',
+  'mercedes-glc':          'https://www.mercedes-benz.es/content/dam/hq/passengercars/cars/glc/glc-coupee-c254/overview/mbvehiclespages-c254-pi-120054.jpg',
+  'seat-ibiza':            'https://www.seat.es/content/dam/seat/es/models/ibiza/gallery/exterior/seat-ibiza-exterior-gallery-01.jpg',
+  'seat-leon':             'https://www.seat.es/content/dam/seat/es/models/leon/gallery/exterior/seat-leon-exterior-gallery-01.jpg',
+  'cupra-born':            'https://www.cupraofficial.es/content/dam/cupra/es/models/born/gallery/exterior/cupra-born-exterior-gallery-01.jpg',
+  'cupra-formentor':       'https://www.cupraofficial.es/content/dam/cupra/es/models/formentor/gallery/exterior/cupra-formentor-exterior-gallery-01.jpg',
+  'mg-mg4':                'https://www.mgmotor.es/content/dam/mg/models/mg4/gallery/exterior/mg4-exterior-gallery-01.jpg',
+  'byd-atto3':             'https://ev-database.org/img/auto/BYD_Atto_3/BYD_Atto_3-01.jpg',
+  'skoda-enyaq':           'https://www.skoda.es/content/dam/skoda/master/models/enyaq/gallery/exterior/skoda-enyaq-gallery-exterior-01.jpg',
+  'skoda-octavia':         'https://www.skoda.es/content/dam/skoda/master/models/octavia/gallery/exterior/skoda-octavia-gallery-exterior-01.jpg',
+  'ford-mustang-mache':    'https://www.ford.es/content/dam/guxeu/es/vehicles/mustang-mach-e/2023/gallery/ford-mustang-mach-e-2023-gallery-01.jpg',
+  'ford-kuga':             'https://www.ford.es/content/dam/guxeu/es/vehicles/kuga/2023/gallery/ford-kuga-2023-gallery-01.jpg',
+  'opel-corsa-electric':   'https://www.opel.es/content/dam/Opel/Europe/spain/nscwebsite/es/01_vehicles/01_cars/04_corsa/02_photo-gallery/corsa-e-gallery-01.jpg',
+  'opel-astra':            'https://www.opel.es/content/dam/Opel/Europe/spain/nscwebsite/es/01_vehicles/01_cars/08_astra/02_photo-gallery/astra-gallery-01.jpg',
+  'mazda-cx30':            'https://www.mazda.es/content/dam/mazda/vehicles/cx-30/2023/gallery/exterior/cx-30-exterior-01.jpg',
+  'mazda-cx5':             'https://www.mazda.es/content/dam/mazda/vehicles/cx-5/2023/gallery/exterior/cx-5-exterior-01.jpg',
+  'nissan-ariya':          'https://www.nissan.es/content/dam/Nissan/es/vehicles/ariya/gallery/ariya-gallery-exterior-01.jpg',
+  'nissan-qashqai':        'https://www.nissan.es/content/dam/Nissan/es/vehicles/qashqai/gallery/qashqai-gallery-exterior-01.jpg',
+  'honda-hrv':             'https://www.honda.es/content/dam/central/cars/hr-v/gallery/exterior/honda-hr-v-exterior-01.jpg',
+  'mitsubishi-outlander-phev': 'https://www.mitsubishi-motors.es/content/dam/mitsubishi/es/models/outlander-phev/gallery/exterior/outlander-phev-exterior-01.jpg',
+  'jeep-avenger':          'https://www.jeep.es/content/dam/jeep/europe/es/models/avenger/gallery/exterior/jeep-avenger-exterior-01.jpg',
+  'subaru-forester':       'https://www.subaru.es/content/dam/subaru/es/models/forester/gallery/exterior/forester-exterior-01.jpg',
+  'porsche-taycan':        'https://files.porsche.com/filestore/image/multimedia/none/992-gt3-modelimage-sideshot/model/765dfc51-51bc-11eb-80d1-005056bbdc38/porsche-model.png',
+  'audi-q4-etron':         'https://www.audi.es/content/dam/nemo/es/models/q4-e-tron/gallery/audi-q4-e-tron-gallery-01.jpg',
+  'mini-cooper-electric':  'https://www.mini.es/content/dam/mini/master/models/cooper/gallery/exterior/mini-cooper-se-exterior-01.jpg',
+  'lexus-ux':              'https://www.lexus.es/content/dam/lexus/images/models/ux/gallery/exterior/lexus-ux-exterior-01.jpg',
+  'lexus-nx':              'https://www.lexus.es/content/dam/lexus/images/models/nx/gallery/exterior/lexus-nx-exterior-01.jpg',
+};
+
 function imgSrc(v) {
-  const m = IMAGIN_MAP[v.id];
-  const mk = m ? m[0] : (v.imagin_make||v.brand.toLowerCase().replace(/\s/g,''));
-  const md = m ? m[1] : (v.imagin_model||v.model.toLowerCase().replace(/[\s.']/g,'').replace(/-+/g,'-'));
-  return `https://cdn.imagin.studio/getimage?customer=${IMAGIN_CUSTOMER}&make=${mk}&modelFamily=${md}&angle=23&zoomType=cutout&width=600&paintId=040&modelYear=2025`;
+  // 1. Check direct URL map
+  if (IMG_URLS[v.id]) return IMG_URLS[v.id];
+
+  // 2. Partial match (e.g. toyota-rav4-hev matches toyota-rav4)
+  const keys = Object.keys(IMG_URLS);
+  const partial = keys.find(k => v.id.startsWith(k) || k.startsWith(v.id.split('-').slice(0,3).join('-')));
+  if (partial) return IMG_URLS[partial];
+
+  // 3. Fallback: Car query API (free, no auth needed)
+  const brand = v.brand.toLowerCase().replace(/\s/g,'-');
+  const model = v.model.toLowerCase().replace(/[\s.']/g,'-').replace(/-+/g,'-');
+  return `https://cdn.imagin.studio/getimage?customer=img-autocompare&make=${brand}&modelFamily=${model}&angle=23&zoomType=cutout&width=600&paintId=040&modelYear=2025`;
 }
 
 // ══════════════════════════════════════════════════
