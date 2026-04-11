@@ -1025,9 +1025,9 @@ img { max-width: 100%; display: block }
         <div class="logo-dot"></div>AutoCoste
       </div>
       <div class="nav-links">
-        <button class="nav-link" onclick="scrollTo('mani')">Metodología</button>
-        <button class="nav-link" onclick="scrollTo('awards')">Análisis</button>
-        <button class="nav-link" onclick="scrollTo('cta')">Estudios</button>
+        <button class="nav-link" onclick="scrollToSection('mani')">Metodología</button>
+        <button class="nav-link" onclick="scrollToSection('awards')">Análisis</button>
+        <button class="nav-link" onclick="scrollToSection('cta')">Estudios</button>
       </div>
       <div class="nav-actions">
         <button class="btn-ghost" onclick="openAuth('login')">Entrar</button>
@@ -1152,7 +1152,7 @@ img { max-width: 100%; display: block }
         </div>
         <div>
           <div class="lf-ct">Metodología</div>
-          <a class="lf-l" onclick="scrollTo('mani')">Fórmula TCO</a>
+          <a class="lf-l" onclick="scrollToSection('mani')">Fórmula TCO</a>
           <a class="lf-l">Fuentes de datos</a>
           <a class="lf-l">Estudios de mercado</a>
         </div>
@@ -1950,7 +1950,7 @@ function showSec(id) {
   if (id === 'compare') renderCmpTable();
   if (id === 'studies') renderStudies();
 }
-function scrollTo(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }
+function scrollToSection(id) { document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }
 
 // Sticky nav
 window.addEventListener('scroll', () => {
