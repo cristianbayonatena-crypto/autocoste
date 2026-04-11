@@ -442,7 +442,7 @@ img { max-width: 100%; display: block }
 
 .vi-img {
   position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: contain; object-position: center 55%;
+  object-fit: cover; object-position: center center;
   transition: transform .55s cubic-bezier(.25,.46,.45,.94), opacity .6s .1s;
   will-change: transform;
 }
@@ -1684,7 +1684,7 @@ function imgSrc(v) {
   const m = IMAGIN_MAP[v.id];
   const mk = m ? m[0] : (v.imagin_make||v.brand.toLowerCase().replace(/\s/g,''));
   const md = m ? m[1] : (v.imagin_model||v.model.toLowerCase().replace(/[\s.']/g,'').replace(/-+/g,'-'));
-  return `https://cdn.imagin.studio/getimage?customer=${IMAGIN_CUSTOMER}&make=${mk}&modelFamily=${md}&angle=23&zoomType=cutout&width=800&modelYear=2025`;
+  return `https://cdn.imagin.studio/getimage?customer=${IMAGIN_CUSTOMER}&make=${mk}&modelFamily=${md}&angle=23&zoomType=cutout&width=600&paintId=040&modelYear=2025`;
 }
 
 // ══════════════════════════════════════════════════
@@ -2015,14 +2015,26 @@ const VEHS_FALLBACK = [
 
 async function loadVehicles(filter = curFuel, page = 0, append = false) {
   if (!append) showSkeleton();
-  if (supa && SUPABASE_URL !== 'https://PLACEHOLDER.supabase.co') {
+  if (supa) {
     try {
+      // Try v_catalog view first, fall back to vehicles table
       let q = supa.from('v_catalog').select('*', { count: 'exact' })
         .eq('active', true).order('fuel_type').order('price_from')
         .range(page * 12, (page + 1) * 12 - 1);
       if (filter && filter !== 'all') q = q.eq('fuel_type', filter);
-      const { data, count, error } = await q;
-      if (!error && data) {
+      let { data, count, error } = await q;
+
+      // If v_catalog doesn't exist yet, fall back to vehicles table
+      if (error) {
+        let q2 = supa.from('vehicles').select('*', { count: 'exact' })
+          .eq('active', true).order('fuel_type').order('price_from')
+          .range(page * 12, (page + 1) * 12 - 1);
+        if (filter && filter !== 'all') q2 = q2.eq('fuel_type', filter);
+        const res2 = await q2;
+        data = res2.data; count = res2.count; error = res2.error;
+      }
+
+      if (!error && data && data.length > 0) {
         totalVehs = count || 0;
         hasMore = (page + 1) * 12 < totalVehs;
         const adapted = data.map(adaptSupa);
@@ -2031,7 +2043,7 @@ async function loadVehicles(filter = curFuel, page = 0, append = false) {
         renderGrid();
         return;
       }
-    } catch(e) {}
+    } catch(e) { console.warn('Supabase load error:', e); }
   }
   // Fallback
   let vehs = VEHS_FALLBACK;
@@ -2047,34 +2059,50 @@ async function loadVehicles(filter = curFuel, page = 0, append = false) {
 }
 
 function adaptSupa(d) {
+  const basePrice = d.min_price || d.price_from || d.price || 20000;
+  const baseVer = {
+    id: d.base_version_id || d.id + '-base',
+    finish: d.base_finish || 'Base',
+    motor: d.base_motor || d.fuel_type,
+    type: d.fuel_type,
+    price: basePrice,
+    cv: d.base_cv || 100,
+    co2: d.base_co2 || 0,
+    cons: d.base_cons_l || (d.fuel_type === 'diesel' ? 6.0 : d.fuel_type === 'gasolina' ? 6.5 : null),
+    consKwh: d.base_cons_kwh || (d.fuel_type === 'electrico' ? 17.0 : null),
+    consTh: null,
+    mant: d.base_maint || 500,
+    ins_coef: d.base_ins || 0.04,
+    tyrC: d.base_tyre_cost || 420,
+    tyrKm: d.base_tyre_km || 40000,
+    ivtm: d.base_ivtm || (d.fuel_type === 'electrico' ? 25 : 88),
+    itv: d.base_itv || 22,
+    dep: [d.dep_y1||.18, d.dep_y2||.13, d.dep_y3||.11, d.dep_y4||.10, d.dep_y5||.09],
+    repC: d.base_repair || 220,
+    moves: d.moves_eligible,
+    movesAmt: d.moves_amount || 0,
+    extras: [],
+  };
   return {
     id: d.id, brand: d.brand, model: d.model,
     seg: d.segment, body: d.body || 'suv',
-    type: d.fuel_type, price: d.min_price || d.price_from,
-    maxP: d.max_price || d.price_to,
-    rel: d.reliability || 80, award: d.award,
-    moves: d.moves_eligible, movesAmt: d.moves_amount || 0,
-    imagin_make: d.imagin_make, imagin_model: d.imagin_model,
+    type: d.fuel_type,
+    price: basePrice,
+    maxP: d.max_price || d.price_to || basePrice,
+    rel: d.reliability || 80,
+    award: d.award,
+    moves: d.moves_eligible,
+    movesAmt: d.moves_amount || 0,
+    imagin_make: d.imagin_make,
+    imagin_model: d.imagin_model,
     ver_count: d.version_count || 1,
-    versions: [{
-      id: d.base_version_id || d.id + '-base',
-      finish: d.base_finish || 'Base',
-      motor: d.base_motor || '',
-      type: d.fuel_type, price: d.min_price || d.price_from,
-      cv: d.base_cv || 100, co2: d.base_co2 || 0,
-      cons: d.base_cons_l, consKwh: d.base_cons_kwh,
-      mant: d.base_maint || 500, ins_coef: d.base_ins || 0.04,
-      tyrC: d.base_tyre_cost || 420, tyrKm: d.base_tyre_km || 40000,
-      ivtm: d.base_ivtm || 80, itv: d.base_itv || 22,
-      dep: [d.dep_y1||.18, d.dep_y2||.13, d.dep_y3||.11, d.dep_y4||.10, d.dep_y5||.09],
-      repC: d.base_repair || 220, moves: d.moves_eligible, movesAmt: d.moves_amount || 0,
-    }]
+    versions: [baseVer]
   };
 }
 
 async function loadVersions(vehId) {
   if (VER_CACHE[vehId]) return VER_CACHE[vehId];
-  if (supa && SUPABASE_URL !== 'https://PLACEHOLDER.supabase.co') {
+  if (supa) {
     try {
       const { data } = await supa.from('vehicle_versions')
         .select('*').eq('vehicle_id', vehId).order('sort_order');
@@ -2157,8 +2185,10 @@ function makeVCard(v) {
     <div class="vi ${fuelCls}">
       <div class="vi-fb">${bodyEm}</div>
       <img class="vi-img" src="${img}" alt="${v.brand} ${v.model}"
-        onload="this.style.opacity=1"
-        onerror="this.style.opacity=0" style="opacity:0;transition:opacity .6s .1s">
+        loading="lazy" crossorigin="anonymous"
+        onload="this.style.opacity=1;this.style.transform='scale(1)'"
+        onerror="this.style.opacity=0;this.style.display='none'"
+        style="opacity:0;transition:opacity .5s ease">
       <div class="vi-fade"></div>
       <div class="vi-badges">
         <div class="badge-type ${typeCls}">${FUEL_LABEL[v.type]||v.type}</div>
@@ -2580,7 +2610,7 @@ async function saveStudy(vehId, verId) {
     localStorage.setItem('ac_studies_'+user.id, JSON.stringify(studies.slice(0, 50)));
   } catch(e) {}
   // Supabase (anon data)
-  if (supa && SUPABASE_URL !== 'https://PLACEHOLDER.supabase.co') {
+  if (supa) {
     try {
       await supa.from('studies').insert({ user_id: user.id, title: `${veh?.brand} ${veh?.model} ${ver.finish}`, vehicles: [vehId], params: tcoParams, results: { tco: tco.TCO, monthly: tco.monthly } });
     } catch(e) {}
@@ -2624,7 +2654,7 @@ async function doLogin() {
   const pass = document.getElementById('lPass').value;
   if (!email) return showAuthErr('Introduce tu email');
   if (!pass) return showAuthErr('Introduce tu contraseña');
-  if (!supa || SUPABASE_URL === 'https://PLACEHOLDER.supabase.co') {
+  if (!supa) {
     const name = email.split('@')[0].replace(/[._-]/g,' ').split(' ').map(w=>w[0]?.toUpperCase()+w.slice(1)).join(' ');
     setUser({ id: 'demo-' + Date.now(), name, email }); closeAuth(); return;
   }
@@ -2644,7 +2674,7 @@ async function doRegister() {
   if (!n) return showAuthErr('Introduce tu nombre');
   if (!email) return showAuthErr('Introduce tu email');
   if (pass.length < 8) return showAuthErr('Mínimo 8 caracteres');
-  if (!supa || SUPABASE_URL === 'https://PLACEHOLDER.supabase.co') {
+  if (!supa) {
     setUser({ id: 'demo-' + Date.now(), name: n + (l ? ' ' + l : ''), email, ca });
     closeAuth(); return;
   }
@@ -2697,7 +2727,7 @@ async function uploadAnonSessions(userId) {
 
 // Restore session on load
 async function restoreSession() {
-  if (!supa || SUPABASE_URL === 'https://PLACEHOLDER.supabase.co') return;
+  if (!supa) return;
   try {
     const { data } = await supa.auth.getSession();
     if (data?.session?.user) {
